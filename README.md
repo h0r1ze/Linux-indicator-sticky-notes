@@ -26,7 +26,7 @@ The interface is available in **English and Russian** and switches in one click.
 
 A Python and GTK3 app with no extra dependencies. The idea comes from [Sticky](https://github.com/linuxmint/sticky) in Linux Mint, but this is an independent implementation and no code from the original was used.
 
-**Works on:** Debian, Ubuntu, Linux Mint, Fedora, RHEL and its clones (AlmaLinux, Rocky, RED OS), Arch Linux (Manjaro, EndeavourOS), openSUSE, Alpine, Void and any other distribution with Python 3.9+ and GTK 3. The tests, the installer and the packages are checked in containers of these systems on every change.
+**Works on** any Linux with Python 3.9+ and GTK 3. On every change the tests, the installer and the packages are checked automatically on Debian 12, Ubuntu 22.04 and 24.04, Fedora, AlmaLinux 9 (RHEL), Arch Linux and openSUSE Tumbleweed; Linux Mint, Manjaro and Rocky are their derivatives, and the `.rpm` for RED OS 8 is built and tried by hand. The installer also knows Alpine and Void, but those are not tested.
 
 ## Quick start
 
@@ -43,12 +43,16 @@ indicator-sticky-notes
 
 Or take a ready package from the [releases page](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest):
 
-| System | Package | Command |
+| System | File to download | Install |
 |---|---|---|
-| Debian, Ubuntu, Linux Mint | `.deb` | `sudo apt install ./indicator-sticky-notes_*_all.deb` |
-| Fedora, RHEL, AlmaLinux, Rocky, RED OS | `.rpm` (take the one for your system: `fc` Fedora, `el9` RHEL 9 and clones, `red80` RED OS 8) | `sudo dnf install ./indicator-sticky-notes-*.noarch.rpm` |
-| Arch Linux, Manjaro, EndeavourOS | `.pkg.tar.zst` | `sudo pacman -U indicator-sticky-notes-*.pkg.tar.zst` |
-| Anything else | source | `./install.sh`, or `./run.sh` to run without installing |
+| **RED OS 8** | `indicator-sticky-notes-…red80.noarch.rpm` | `sudo dnf install ./indicator-sticky-notes-*.red80.noarch.rpm` |
+| **Fedora** (current) | `indicator-sticky-notes-…fc44.noarch.rpm` | `sudo dnf install ./indicator-sticky-notes-*.fc44.noarch.rpm` |
+| **RHEL 9, AlmaLinux 9, Rocky 9** | `indicator-sticky-notes-…el9.noarch.rpm` | `sudo dnf install ./indicator-sticky-notes-*.el9.noarch.rpm` |
+| **Debian, Ubuntu, Linux Mint** | `indicator-sticky-notes_…_all.deb` | `sudo apt install ./indicator-sticky-notes_*_all.deb` |
+| **Arch Linux, Manjaro, EndeavourOS** | `indicator-sticky-notes-…-any.pkg.tar.zst` | `sudo pacman -U indicator-sticky-notes-*.pkg.tar.zst` |
+| Any other Linux, or a different Fedora version | source code | `./install.sh` (or `./run.sh` to run without installing) |
+
+The letters in the `.rpm` names are the distribution tags: `red80` is RED OS 8, `fc44` is Fedora 44, `el9` is Enterprise Linux 9. An `.rpm` is tied to the Python version of the system it was built on, so take the file that matches your system (on another version use `./install.sh`).
 
 A tray icon appears: a click hides or shows all notes, a right click opens the menu.
 
