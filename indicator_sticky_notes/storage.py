@@ -14,7 +14,7 @@ FORMAT_VERSION = 1
 
 def default_dir() -> Path:
     base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
-    return Path(base) / "indicat-sticky-notes"
+    return Path(base) / "indicator-sticky-notes"
 
 
 def default_path() -> Path:

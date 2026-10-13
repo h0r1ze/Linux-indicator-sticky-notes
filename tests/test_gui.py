@@ -18,11 +18,11 @@ except (ImportError, ValueError):
     HAVE_DISPLAY = False
 
 if HAVE_DISPLAY:
-    from indicat_sticky_notes import backup, checklist, exchange
-    from indicat_sticky_notes.app import StickyApp
-    from indicat_sticky_notes.manager import ALL_GROUPS, NO_GROUP
-    from indicat_sticky_notes.settings import Settings
-    from indicat_sticky_notes.storage import Note, NoteStore
+    from indicator_sticky_notes import backup, checklist, exchange
+    from indicator_sticky_notes.app import StickyApp
+    from indicator_sticky_notes.manager import ALL_GROUPS, NO_GROUP
+    from indicator_sticky_notes.settings import Settings
+    from indicator_sticky_notes.storage import Note, NoteStore
 
 
 def pump(seconds=0.15):
@@ -906,13 +906,13 @@ class GuiStage2Test(GuiTest):
         reloaded.load()
         self.assertEqual(reloaded.notes[0].font_size, 25)
 
-    @unittest.skipUnless(__import__("indicat_sticky_notes.hotkeys", fromlist=["x"]).supported(),
+    @unittest.skipUnless(__import__("indicator_sticky_notes.hotkeys", fromlist=["x"]).supported(),
                          "нужен X11")
     def test_dragging_the_slider_inside_the_open_menu_keeps_menu_open(self):
         """Настоящее перетаскивание мышью (XTest) внутри открытого меню: меню не должно закрыться."""
         import ctypes
         import ctypes.util
-        from indicat_sticky_notes import hotkeys
+        from indicator_sticky_notes import hotkeys
         xtest_lib = ctypes.util.find_library("Xtst")
         if not xtest_lib:
             self.skipTest("нет libXtst")
@@ -967,7 +967,7 @@ class GuiStage2Test(GuiTest):
     # --- справка и «О программе» ---
 
     def test_help_window_lists_every_section_and_is_reused(self):
-        from indicat_sticky_notes import help_window
+        from indicator_sticky_notes import help_window
         self.start()
         self.app.open_help()
         first = self.app.help_window
@@ -982,7 +982,7 @@ class GuiStage2Test(GuiTest):
         first.destroy()
 
     def test_help_mentions_the_shortcuts_the_app_really_has(self):
-        from indicat_sticky_notes import help_window
+        from indicator_sticky_notes import help_window
         text = help_window.help_text()
         for needle in ("Ctrl+B", "Ctrl+L", "Ctrl+Alt+N", "Ctrl+Alt+S", "F1", "Tab", "Ctrl+A", "Delete"):
             self.assertIn(needle, text)
@@ -1000,13 +1000,13 @@ class GuiStage2Test(GuiTest):
         self.assertTrue(self.app.settings_window._on_key_press(None, key(Gdk.KEY_F1)))
         self.assertEqual(calls, ["help", "help", "help"])
 
-    @unittest.skipUnless(__import__("indicat_sticky_notes.hotkeys", fromlist=["x"]).supported(),
+    @unittest.skipUnless(__import__("indicator_sticky_notes.hotkeys", fromlist=["x"]).supported(),
                          "нужен X11")
     def test_real_f1_key_press_opens_help_with_focus_on_header_button_and_on_text(self):
         """Настоящее нажатие F1 (XTest) при разном фокусе внутри заметки."""
         import ctypes
         import ctypes.util
-        from indicat_sticky_notes import hotkeys
+        from indicator_sticky_notes import hotkeys
         xtest_lib = ctypes.util.find_library("Xtst")
         if not xtest_lib:
             self.skipTest("нет libXtst")
@@ -1050,7 +1050,7 @@ class GuiStage2Test(GuiTest):
         window._on_key_press(window, key(Gdk.KEY_F1, 0))   # просто не принимается как сочетание
 
     def test_about_dialog_has_version_site_and_license(self):
-        from indicat_sticky_notes import __version__, help_window
+        from indicator_sticky_notes import __version__, help_window
         dialog = help_window.build_about_dialog()
         self.assertEqual(dialog.get_version(), __version__)
         self.assertEqual(dialog.get_website(), help_window.WEBSITE)
@@ -1205,14 +1205,14 @@ class GuiStage2Test(GuiTest):
     def test_shadow_does_not_exceed_window_margin(self):
         """Регрессия: тень шире отступа вокруг листа обрезалась и давала видимый прямоугольник."""
         import re
-        from indicat_sticky_notes import theme
+        from indicator_sticky_notes import theme
         shadow = re.search(r"\.note \{[^}]*box-shadow: 0 (\d+)px (\d+)px", theme._STATIC_CSS)
         offset, blur = int(shadow.group(1)), int(shadow.group(2))
         self.assertLessEqual(offset + blur, theme.SHADOW_MARGIN)
 
     # --- глобальные клавиши ---
 
-    @unittest.skipUnless(__import__("indicat_sticky_notes.hotkeys", fromlist=["x"]).supported(),
+    @unittest.skipUnless(__import__("indicator_sticky_notes.hotkeys", fromlist=["x"]).supported(),
                          "нужен X11")
     def test_global_hotkey_creates_note(self):
         self.app.use_hotkeys = True

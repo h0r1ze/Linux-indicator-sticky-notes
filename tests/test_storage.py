@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from indicat_sticky_notes.storage import Note, NoteStore
+from indicator_sticky_notes.storage import Note, NoteStore
 
 
 class NoteStoreTest(unittest.TestCase):

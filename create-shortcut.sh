@@ -10,14 +10,14 @@ Name=Стикеры
 Comment=Заметки на рабочем столе
 Exec=\"$dir/run.sh\"
 Path=$dir
-Icon=$dir/data/icons/hicolor/scalable/apps/indicat-sticky-notes.svg
+Icon=$dir/data/icons/hicolor/scalable/apps/indicator-sticky-notes.svg
 Terminal=false
 Categories=Utility;
 "
 
 apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 mkdir -p "$apps"
-for target in "$dir/Стикеры.desktop" "$apps/indicat-sticky-notes.desktop"; do
+for target in "$dir/Стикеры.desktop" "$apps/indicator-sticky-notes.desktop"; do
     printf '%s' "$entry" > "$target"
     chmod +x "$target"
     echo "Создан: $target"

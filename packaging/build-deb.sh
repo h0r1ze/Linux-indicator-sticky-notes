@@ -5,8 +5,8 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 cd "$root"
-version="$(python3 -c 'import indicat_sticky_notes as m; print(m.__version__)')"
-stage="$root/build/deb/indicat-sticky-notes_${version}"
+version="$(python3 -c 'import indicator_sticky_notes as m; print(m.__version__)')"
+stage="$root/build/deb/indicator-sticky-notes_${version}"
 
 rm -rf "$stage"
 mkdir -p "$stage"
@@ -22,14 +22,16 @@ find "$stage" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 mkdir -p "$stage/DEBIAN"
 cat > "$stage/DEBIAN/control" <<CONTROL
-Package: indicat-sticky-notes
+Package: indicator-sticky-notes
 Version: ${version}
 Section: utils
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.9), python3-gi, gir1.2-gtk-3.0
+Replaces: indicat-sticky-notes (<< 0.2.3)
+Conflicts: indicat-sticky-notes (<< 0.2.3)
 Maintainer: h0r1ze <87946256+h0r1ze@users.noreply.github.com>
-Homepage: https://github.com/h0r1ze/indicat-sticky-notes
+Homepage: https://github.com/h0r1ze/Linux-indicator-sticky-notes
 Description: Sticky notes for the Linux desktop (GTK3)
  Coloured notes with a designer palette, checklists, formatting, groups, trash,
  search, backups, sync through a shared folder, global hotkeys and a tray icon.
@@ -39,5 +41,5 @@ if [ "${STAGE_ONLY:-0}" = "1" ]; then
     echo "Дерево пакета: $stage"
     exit 0
 fi
-dpkg-deb --build --root-owner-group "$stage" "$root/build/indicat-sticky-notes_${version}_all.deb"
-echo "Готово: build/indicat-sticky-notes_${version}_all.deb"
+dpkg-deb --build --root-owner-group "$stage" "$root/build/indicator-sticky-notes_${version}_all.deb"
+echo "Готово: build/indicator-sticky-notes_${version}_all.deb"

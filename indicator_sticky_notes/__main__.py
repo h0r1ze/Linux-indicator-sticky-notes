@@ -1,9 +1,11 @@
 import sys
 
+from . import legacy
 from .app import StickyApp
 
 
 def main():
+    legacy.migrate()
     return StickyApp().run(sys.argv)
 
 

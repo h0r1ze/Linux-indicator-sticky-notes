@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from indicat_sticky_notes import autostart
+from indicator_sticky_notes import autostart
 
 
 class AutostartTest(unittest.TestCase):
@@ -29,18 +29,18 @@ class AutostartTest(unittest.TestCase):
     def test_entry_when_run_from_sources(self):
         with mock.patch("shutil.which", return_value=None):
             text = autostart.desktop_entry()
-        self.assertIn("-m indicat_sticky_notes", text)
+        self.assertIn("-m indicator_sticky_notes", text)
         self.assertIn("Path=", text)
         self.assertIn("Type=Application", text)
         self.assertIn("Icon=", text)
-        self.assertIn("indicat-sticky-notes.svg", text)  # значок из дерева исходников
+        self.assertIn("indicator-sticky-notes.svg", text)  # значок из дерева исходников
 
     def test_entry_when_installed(self):
-        with mock.patch("shutil.which", return_value="/usr/bin/indicat-sticky-notes"):
+        with mock.patch("shutil.which", return_value="/usr/bin/indicator-sticky-notes"):
             text = autostart.desktop_entry()
-        self.assertIn("Exec=/usr/bin/indicat-sticky-notes\n", text)
+        self.assertIn("Exec=/usr/bin/indicator-sticky-notes\n", text)
         self.assertNotIn("Path=", text)
-        self.assertIn("Icon=indicat-sticky-notes\n", text)
+        self.assertIn("Icon=indicator-sticky-notes\n", text)
 
     def test_shortcut_entry_has_no_autostart_key(self):
         with mock.patch("shutil.which", return_value=None):
@@ -82,7 +82,7 @@ class DesktopShortcutTest(unittest.TestCase):
         self.assertTrue(os.access(path, os.X_OK))
         text = path.read_text(encoding="utf-8")
         self.assertIn("Name=Стикеры", text)
-        self.assertIn("-m indicat_sticky_notes", text)
+        self.assertIn("-m indicator_sticky_notes", text)
         self.assertNotIn("Autostart", text)
 
     def test_create_shortcut_twice_overwrites_without_error(self):

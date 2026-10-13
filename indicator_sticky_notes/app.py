@@ -18,8 +18,8 @@ from .settings import Settings  # noqa: E402
 from .settings_window import SettingsWindow  # noqa: E402
 from .storage import NoteStore  # noqa: E402
 
-APP_ID = "io.github.h0r1ze.IndicatStickyNotes"
-ICON_NAME = "indicat-sticky-notes"
+APP_ID = "io.github.h0r1ze.IndicatorStickyNotes"
+ICON_NAME = "indicator-sticky-notes"
 FALLBACK_ICON = "accessories-text-editor"
 RELOAD_DELAY_MS = 400
 

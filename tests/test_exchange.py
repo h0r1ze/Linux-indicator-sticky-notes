@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from indicat_sticky_notes import exchange
-from indicat_sticky_notes.storage import Note, dump_notes
+from indicator_sticky_notes import exchange
+from indicator_sticky_notes.storage import Note, dump_notes
 
 
 class MarkdownTest(unittest.TestCase):

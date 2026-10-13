@@ -17,7 +17,7 @@ jobs:
           sudo apt-get install -y python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 \
             fonts-noto-core desktop-file-utils
       - name: Validate desktop file
-        run: desktop-file-validate data/indicat-sticky-notes.desktop
+        run: desktop-file-validate data/indicator-sticky-notes.desktop
       - name: Unit and GUI tests (virtual X server)
         run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -t . -v
 
@@ -36,7 +36,7 @@ jobs:
         run: ./packaging/build-deb.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: indicat-sticky-notes-deb
+          name: indicator-sticky-notes-deb
           path: build/*.deb
       - name: Attach .deb to the GitHub release
         if: startsWith(github.ref, 'refs/tags/v')

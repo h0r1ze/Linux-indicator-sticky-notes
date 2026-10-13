@@ -28,7 +28,7 @@ RANGES = {
 
 def default_path() -> Path:
     base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
-    return Path(base) / "indicat-sticky-notes" / "settings.json"
+    return Path(base) / "indicator-sticky-notes" / "settings.json"
 
 
 def validate(key, value):

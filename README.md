@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="data/icons/hicolor/scalable/apps/indicat-sticky-notes.svg" width="96" alt="Иконка Стикеров">
+<img src="data/icons/hicolor/scalable/apps/indicator-sticky-notes.svg" width="96" alt="Иконка Стикеров">
 
 # Стикеры
 
 **Цветные заметки на рабочем столе Linux.**<br>
 Чекбоксы, форматирование, группы, корзина, синхронизация между компьютерами и иконка в трее.
 
-[![CI](https://github.com/h0r1ze/indicat-sticky-notes/actions/workflows/ci.yml/badge.svg)](https://github.com/h0r1ze/indicat-sticky-notes/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/h0r1ze/indicat-sticky-notes?color=%23e0b800)](https://github.com/h0r1ze/indicat-sticky-notes/releases/latest)
+[![CI](https://github.com/h0r1ze/Linux-indicator-sticky-notes/actions/workflows/ci.yml/badge.svg)](https://github.com/h0r1ze/Linux-indicator-sticky-notes/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/h0r1ze/Linux-indicator-sticky-notes?color=%23e0b800)](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest)
 [![Лицензия: MIT](https://img.shields.io/badge/лицензия-MIT-green.svg)](LICENSE)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)
 ![GTK 3](https://img.shields.io/badge/GTK-3-lightgrey.svg)
@@ -21,18 +21,27 @@
 
 ## Быстрый старт
 
-Скачайте `.deb`,`.rpm` со [страницы релизов](https://github.com/h0r1ze/indicat-sticky-notes/releases/latest) (Debian, Ubuntu, RedOS 8, Linux Mint):
+Скачайте `.deb` или `.rpm` со [страницы релизов](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest) (Debian, Ubuntu, Linux Mint — `.deb`; RED OS 8, Fedora — `.rpm`).
+
+Debian, Ubuntu, Linux Mint:
 
 ```bash
-sudo apt install ./indicat-sticky-notes_*_all.deb
-indicat-sticky-notes
+sudo apt install ./indicator-sticky-notes_*_all.deb
+indicator-sticky-notes
+```
+
+RED OS 8, Fedora:
+
+```bash
+sudo dnf install ./indicator-sticky-notes-*.noarch.rpm
+indicator-sticky-notes
 ```
 
 Или запустите из исходников (нужны только Python 3.9+, GTK 3 и PyGObject):
 
 ```bash
-git clone https://github.com/h0r1ze/indicat-sticky-notes.git
-cd indicat-sticky-notes
+git clone https://github.com/h0r1ze/Linux-indicator-sticky-notes.git
+cd Linux-indicator-sticky-notes
 ./run.sh
 ```
 
@@ -100,21 +109,21 @@ cd indicat-sticky-notes
 
 ## Установка
 
-**Debian, Ubuntu, Linux Mint** — готовый пакет на странице [релизов](https://github.com/h0r1ze/indicat-sticky-notes/releases/latest), или соберите сами (нужны `python3-setuptools` и `dpkg-deb`):
+**Debian, Ubuntu, Linux Mint** — готовый пакет на странице [релизов](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest), или соберите сами (нужны `python3-setuptools` и `dpkg-deb`):
 
 ```bash
 ./packaging/build-deb.sh
-sudo apt install ./build/indicat-sticky-notes_*_all.deb
+sudo apt install ./build/indicator-sticky-notes_*_all.deb
 ```
 
 **Fedora, RED OS** — spec и скрипт сборки лежат в `packaging/` (нужны `rpm-build`, `python3-devel`, `python3-rpm-macros`, `python3-setuptools`):
 
 ```bash
 ./packaging/build-rpm.sh
-sudo dnf install ./build/indicat-sticky-notes-*.noarch.rpm
+sudo dnf install ./build/indicator-sticky-notes-*.noarch.rpm
 ```
 
-Готовый `.rpm` для RED OS 8 также лежит на странице [релизов](https://github.com/h0r1ze/indicat-sticky-notes/releases/latest). Пакет `noarch` (чистый Python), он ставится на x86_64 и другие архитектуры.
+Готовый `.rpm` для RED OS 8 также лежит на странице [релизов](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest). Пакет `noarch` (чистый Python), он ставится на x86_64 и другие архитектуры.
 
 **Из исходников** понадобятся GTK 3 и PyGObject (Debian/Ubuntu/Mint: `python3-gi gir1.2-gtk-3.0`, Fedora/RED OS: `python3-gobject gtk3`):
 
@@ -129,9 +138,11 @@ sudo dnf install ./build/indicat-sticky-notes-*.noarch.rpm
 
 | Что | Где |
 |---|---|
-| Заметки | `~/.local/share/indicat-sticky-notes/notes.json` (или выбранная папка синхронизации) |
-| Автоматические копии | `~/.local/share/indicat-sticky-notes/backups/` |
-| Настройки | `~/.config/indicat-sticky-notes/settings.json` |
+| Заметки | `~/.local/share/indicator-sticky-notes/notes.json` (или выбранная папка синхронизации) |
+| Автоматические копии | `~/.local/share/indicator-sticky-notes/backups/` |
+| Настройки | `~/.config/indicator-sticky-notes/settings.json` |
+
+До версии 0.2.3 пакет назывался `indicat-sticky-notes` (опечатка). При первом запуске новой версии заметки, настройки и автозапуск переносятся из старых папок сами, а `.deb` и `.rpm` заменяют старый пакет.
 
 ## Для разработчиков
 

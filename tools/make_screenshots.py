@@ -23,10 +23,10 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from indicat_sticky_notes.app import StickyApp  # noqa: E402
-from indicat_sticky_notes.palette import PalettePopup  # noqa: E402
-from indicat_sticky_notes.settings import Settings  # noqa: E402
-from indicat_sticky_notes.storage import NoteStore  # noqa: E402
+from indicator_sticky_notes.app import StickyApp  # noqa: E402
+from indicator_sticky_notes.palette import PalettePopup  # noqa: E402
+from indicator_sticky_notes.settings import Settings  # noqa: E402
+from indicator_sticky_notes.storage import NoteStore  # noqa: E402
 
 OUT = ROOT / "docs" / "images"
 SCALE = 2  # масштаб рисунка: чёткие картинки на экранах с высоким разрешением
@@ -85,7 +85,7 @@ class Canvas:
         cr.rectangle(0, 0, self.width, 26)
         cr.fill()
         icon = GdkPixbuf.Pixbuf.new_from_file_at_size(
-            str(ROOT / "data/icons/hicolor/scalable/apps/indicat-sticky-notes.svg"), 18 * SCALE, 18 * SCALE
+            str(ROOT / "data/icons/hicolor/scalable/apps/indicator-sticky-notes.svg"), 18 * SCALE, 18 * SCALE
         )
         cr.save()
         cr.scale(1 / SCALE, 1 / SCALE)  # значок рисуем в настоящих пикселях

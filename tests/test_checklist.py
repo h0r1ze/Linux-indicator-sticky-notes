@@ -1,6 +1,6 @@
 import unittest
 
-from indicat_sticky_notes import checklist as c
+from indicator_sticky_notes import checklist as c
 
 
 class ChecklistTest(unittest.TestCase):

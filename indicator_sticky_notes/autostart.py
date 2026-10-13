@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-NAME = "indicat-sticky-notes.desktop"
+NAME = "indicator-sticky-notes.desktop"
 SHORTCUT_NAME = "Стикеры.desktop"
 
 
@@ -20,13 +20,13 @@ def _project_root() -> Path:
 
 def desktop_entry(autostart=True) -> str:
     """Содержимое ярлыка: установленная команда или запуск из папки с исходниками."""
-    installed = shutil.which("indicat-sticky-notes")
+    installed = shutil.which("indicator-sticky-notes")
     if installed:
-        exec_line, path_line, icon = installed, "", "indicat-sticky-notes"
+        exec_line, path_line, icon = installed, "", "indicator-sticky-notes"
     else:
-        exec_line = f"{sys.executable} -m indicat_sticky_notes"
+        exec_line = f"{sys.executable} -m indicator_sticky_notes"
         path_line = f"Path={_project_root()}\n"
-        source_icon = _project_root() / "data/icons/hicolor/scalable/apps/indicat-sticky-notes.svg"
+        source_icon = _project_root() / "data/icons/hicolor/scalable/apps/indicator-sticky-notes.svg"
         icon = str(source_icon) if source_icon.exists() else "accessories-text-editor"
     return (
         "[Desktop Entry]\n"

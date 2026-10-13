@@ -1,6 +1,6 @@
 import unittest
 
-from indicat_sticky_notes import colors
+from indicator_sticky_notes import colors
 
 
 class ColorsTest(unittest.TestCase):

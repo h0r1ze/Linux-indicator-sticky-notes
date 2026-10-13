@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from indicat_sticky_notes import settings, storage
-from indicat_sticky_notes.settings import Settings
+from indicator_sticky_notes import settings, storage
+from indicator_sticky_notes.settings import Settings
 
 
 class SettingsTest(unittest.TestCase):

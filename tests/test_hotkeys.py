@@ -5,7 +5,7 @@ import os
 import time
 import unittest
 
-from indicat_sticky_notes import hotkeys
+from indicator_sticky_notes import hotkeys
 
 try:
     import gi

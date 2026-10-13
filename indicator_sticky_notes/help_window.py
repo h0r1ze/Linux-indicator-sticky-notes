@@ -6,7 +6,7 @@ from gi.repository import Gtk, Pango  # noqa: E402
 
 from . import __version__  # noqa: E402
 
-WEBSITE = "https://github.com/h0r1ze/indicat-sticky-notes"
+WEBSITE = "https://github.com/h0r1ze/Linux-indicator-sticky-notes"
 
 # (заголовок, [строки]). Строка «клавиши — действие» оформляется как пункт списка.
 HELP_SECTIONS = (
@@ -44,7 +44,7 @@ HELP_SECTIONS = (
         "Резервные копии: меню трея → «Резервные копии». Автокопия делается раз в сутки при запуске.",
         "Синхронизация между компьютерами: в настройках выберите папку Syncthing, Nextcloud и т. п.",
         "Экспорт в Markdown и .txt, импорт из .txt, .md, копий и Mint Sticky: меню трея → «Обмен данными».",
-        "Заметки лежат в ~/.local/share/indicat-sticky-notes/, настройки в ~/.config/indicat-sticky-notes/.",
+        "Заметки лежат в ~/.local/share/indicator-sticky-notes/, настройки в ~/.config/indicator-sticky-notes/.",
     )),
     ("Горячие клавиши", (
         "Ctrl+Alt+N новая заметка (глобально, X11; меняется в настройках)",
@@ -103,7 +103,7 @@ class HelpWindow(Gtk.Window):
         self.present()
 
 
-def build_about_dialog(parent=None, icon_name="indicat-sticky-notes"):
+def build_about_dialog(parent=None, icon_name="indicator-sticky-notes"):
     dialog = Gtk.AboutDialog(transient_for=parent, modal=parent is not None)
     dialog.set_program_name("Стикеры")
     dialog.set_version(__version__)

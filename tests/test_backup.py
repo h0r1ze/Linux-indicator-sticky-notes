@@ -4,8 +4,8 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from indicat_sticky_notes import backup
-from indicat_sticky_notes.storage import Note
+from indicator_sticky_notes import backup
+from indicator_sticky_notes.storage import Note
 
 
 class BackupTest(unittest.TestCase):

@@ -11,17 +11,17 @@ if ! command -v rpmbuild >/dev/null; then
     exit 1
 fi
 
-version="$(python3 -c 'import indicat_sticky_notes as m; print(m.__version__)')"
+version="$(python3 -c 'import indicator_sticky_notes as m; print(m.__version__)')"
 top="$root/build/rpm"
 rm -rf "$top"
 mkdir -p "$top"/{SOURCES,SPECS,BUILD,RPMS,SRPMS,BUILDROOT}
 
 # Исходники: файлы под контролем git (текущее состояние рабочей папки).
 git ls-files -z | tar --null -T - \
-    --transform "s,^,indicat-sticky-notes-${version}/," \
-    -czf "$top/SOURCES/indicat-sticky-notes-${version}.tar.gz"
+    --transform "s,^,Linux-indicator-sticky-notes-${version}/," \
+    -czf "$top/SOURCES/indicator-sticky-notes-${version}.tar.gz"
 
-rpmbuild -ba --define "_topdir $top" packaging/rpm/indicat-sticky-notes.spec
+rpmbuild -ba --define "_topdir $top" packaging/rpm/indicator-sticky-notes.spec
 
 mkdir -p "$root/build"
 find "$top/RPMS" "$top/SRPMS" -name '*.rpm' -exec cp -v {} "$root/build/" \;

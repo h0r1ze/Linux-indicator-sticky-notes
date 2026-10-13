@@ -1,15 +1,17 @@
-Name:           indicat-sticky-notes
-Version:        0.2.2
+Name:           indicator-sticky-notes
+Version:        0.2.3
 Release:        1%{?dist}
 Summary:        Sticky notes for the Linux desktop (GTK3)
 License:        MIT
-URL:            https://github.com/h0r1ze/indicat-sticky-notes
-Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
+URL:            https://github.com/h0r1ze/Linux-indicator-sticky-notes
+Source0:        %{url}/archive/v%{version}.tar.gz#/%{name}-%{version}.tar.gz
 BuildArch:      noarch
 
 BuildRequires:  python3-devel
 BuildRequires:  python3-setuptools
 BuildRequires:  desktop-file-utils
+Obsoletes:      indicat-sticky-notes < 0.2.3
+Provides:       indicat-sticky-notes = %{version}-%{release}
 Requires:       python3-gobject
 Requires:       gtk3
 Requires:       libX11
@@ -20,7 +22,7 @@ formatting, groups, trash, search, backups, sync through a shared folder,
 global hotkeys and a tray icon.
 
 %prep
-%autosetup -n %{name}-%{version}
+%autosetup -n Linux-%{name}-%{version}
 
 %build
 %py3_build
@@ -37,12 +39,16 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{__python3} -m unittest discover -s t
 %license LICENSE
 %doc README.md
 %{_bindir}/%{name}
-%{python3_sitelib}/indicat_sticky_notes/
-%{python3_sitelib}/indicat_sticky_notes-*
+%{python3_sitelib}/indicator_sticky_notes/
+%{python3_sitelib}/indicator_sticky_notes-*
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Oct 13 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.2.3-1
+- Renamed: indicat-sticky-notes -> indicator-sticky-notes (repository Linux-indicator-sticky-notes)
+- Notes and settings are moved from the old folders on first start
+
 * Sat Oct 10 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.2.2-1
 - Font size slider inside the note menu
 - Help window (F1) and About dialog

@@ -8,7 +8,7 @@ from pathlib import Path
 from . import checklist, storage
 from .storage import Note
 
-EXPORT_MARK = "<!-- indicat-sticky-notes export v1 -->"
+EXPORT_MARK = "<!-- indicator-sticky-notes export v1 -->"
 _META = re.compile(r"^<!-- group: (.*?); updated: (.*?) -->$")
 
 # формат -> (открывающий, закрывающий) маркер в Markdown
