@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Команда запуска: ставится в /usr/bin пакетами и install.sh."""
+import sys
+
+from indicator_sticky_notes.__main__ import main
+
+if __name__ == "__main__":
+    sys.exit(main())

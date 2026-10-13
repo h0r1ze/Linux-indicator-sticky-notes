@@ -72,9 +72,9 @@ install_deps() {
         as_root apt-get update
         as_root apt-get install -y python3 python3-gi gir1.2-gtk-3.0
     elif command -v dnf >/dev/null 2>&1; then
-        as_root dnf install -y python3 python3-gobject gtk3 libX11
+        as_root dnf install -y python3 python3-gobject gobject-introspection gtk3 libX11
     elif command -v yum >/dev/null 2>&1; then
-        as_root yum install -y python3 python3-gobject gtk3 libX11
+        as_root yum install -y python3 python3-gobject gobject-introspection gtk3 libX11
     elif command -v pacman >/dev/null 2>&1; then
         as_root pacman -S --needed --noconfirm python python-gobject gtk3 libx11
     elif command -v zypper >/dev/null 2>&1; then

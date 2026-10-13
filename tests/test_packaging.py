@@ -51,6 +51,20 @@ class PackagingTest(unittest.TestCase):
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_metadata_lives_in_setup_py_for_old_setuptools(self):
+        """Старые setuptools (RHEL 9 и клоны) не читают [project] из pyproject.toml."""
+        self.assertNotIn("[project]", read("pyproject.toml"))
+        result = subprocess.run(["python3", "setup.py", "--name", "--version"], cwd=ROOT,
+                                capture_output=True, text=True)
+        self.assertEqual(result.stdout.split(), ["indicator-sticky-notes", __version__])
+
+    def test_launcher_script_is_plain_and_executable(self):
+        launcher = ROOT / "bin" / "indicator-sticky-notes"
+        self.assertTrue(launcher.stat().st_mode & 0o111, "у команды запуска нет права на исполнение")
+        text = launcher.read_text(encoding="utf-8")
+        self.assertIn("from indicator_sticky_notes.__main__ import main", text)
+        self.assertNotIn("pkg_resources", text)  # без поиска метаданных пакета
+
     def test_installer_lists_package_managers_of_major_distributions(self):
         text = read("install.sh")
         for manager in ("apt-get", "dnf", "yum", "pacman", "zypper", "apk", "xbps-install"):

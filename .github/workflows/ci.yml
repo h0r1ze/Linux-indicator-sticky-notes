@@ -57,8 +57,8 @@ jobs:
             image: fedora:latest
             experimental: false
             install: >-
-              dnf install -y git python3 python3-gobject gtk3 libX11 xorg-x11-server-Xvfb
-              xorg-x11-xauth libXtst google-noto-sans-fonts desktop-file-utils
+              dnf install -y git python3 python3-gobject gobject-introspection gtk3 libX11
+              xorg-x11-server-Xvfb xorg-x11-xauth libXtst google-noto-sans-fonts desktop-file-utils
           - name: AlmaLinux 9 (RHEL)
             image: almalinux:9
             experimental: false
@@ -76,7 +76,7 @@ jobs:
             experimental: true
             install: >-
               zypper --non-interactive install git python3 python3-gobject python3-gobject-Gdk
-              typelib-1_0-Gtk-3_0 libX11-6 xorg-x11-server-Xvfb xauth libXtst6 noto-sans-fonts
+              typelib-1_0-Gtk-3_0 libX11-6 xorg-x11-server-Xvfb xvfb-run xauth libXtst6 noto-sans-fonts
               desktop-file-utils
     steps:
       - name: Install dependencies

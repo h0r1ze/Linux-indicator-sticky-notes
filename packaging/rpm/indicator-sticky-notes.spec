@@ -14,6 +14,7 @@ Obsoletes:      indicat-sticky-notes < 0.2.3
 Provides:       indicat-sticky-notes = %{version}-%{release}
 Requires:       python3-gobject
 Requires:       gtk3
+Requires:       gobject-introspection
 Requires:       libX11
 
 %description
