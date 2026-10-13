@@ -1,6 +1,6 @@
 # Maintainer: h0r1ze <87946256+h0r1ze@users.noreply.github.com>
 pkgname=indicator-sticky-notes
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc='Sticky notes for the Linux desktop (GTK3): checklists, groups, trash, sync, tray icon'
 arch=('any')
