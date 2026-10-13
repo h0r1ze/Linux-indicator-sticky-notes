@@ -29,7 +29,7 @@ class PackagingTest(unittest.TestCase):
     def test_no_leftover_old_name(self):
         """Опечатка «indicat» допустима только там, где говорится о старом пакете."""
         allowed = ("legacy.py", "test_legacy.py", "test_packaging.py", ".spec", "PKGBUILD",
-                   "build-deb.sh", "README.md", "README.ru.md", "ci.yml", "install.sh")
+                   "build-deb.sh", "README.md", "README.en.md", "ci.yml", "install.sh")
         offenders = []
         files = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True).stdout.split("\n")
         for name in files:
