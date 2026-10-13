@@ -175,6 +175,29 @@ jobs:
       - name: Start the installed program
         run: ./tools/smoke.sh indicator-sticky-notes
 
+  # Сборки rpm под Fedora и RHEL-клоны прикрепляются к релизу: rpm привязан к версии Python системы.
+  rpm-release:
+    needs: rpm
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: indicator-sticky-notes-rpm-*
+          path: rpms
+          merge-multiple: true
+      - name: Attach the rpm files to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break
+            sleep 10
+          done
+          gh release upload "$GITHUB_REF_NAME" rpms/*.rpm --clobber --repo "$GITHUB_REPOSITORY"
+
   # Пакет для Arch Linux: собирается makepkg, ставится pacman, запускается.
   arch:
     needs: test

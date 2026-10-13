@@ -46,7 +46,7 @@ Or take a ready package from the [releases page](https://github.com/h0r1ze/Linux
 | System | Package | Command |
 |---|---|---|
 | Debian, Ubuntu, Linux Mint | `.deb` | `sudo apt install ./indicator-sticky-notes_*_all.deb` |
-| Fedora, RHEL, AlmaLinux, Rocky, RED OS | `.rpm` | `sudo dnf install ./indicator-sticky-notes-*.noarch.rpm` |
+| Fedora, RHEL, AlmaLinux, Rocky, RED OS | `.rpm` (take the one for your system: `fc` Fedora, `el9` RHEL 9 and clones, `red80` RED OS 8) | `sudo dnf install ./indicator-sticky-notes-*.noarch.rpm` |
 | Arch Linux, Manjaro, EndeavourOS | `.pkg.tar.zst` | `sudo pacman -U indicator-sticky-notes-*.pkg.tar.zst` |
 | Anything else | source | `./install.sh`, or `./run.sh` to run without installing |
 
@@ -139,7 +139,7 @@ sudo apt install ./build/indicator-sticky-notes_*_all.deb
 sudo dnf install ./build/indicator-sticky-notes-*.noarch.rpm
 ```
 
-The package is `noarch` (pure Python), so it installs on x86_64 and other architectures.
+The package is `noarch` (pure Python, any CPU), but it is tied to the Python version of the system it was built on, so use the file for your distribution or build it yourself.
 
 **Arch Linux, Manjaro.** Build with `makepkg` (needs `base-devel` and `python-build python-installer python-setuptools python-wheel`; do not run as root):
 

@@ -46,7 +46,7 @@ indicator-sticky-notes
 | Система | Пакет | Команда |
 |---|---|---|
 | Debian, Ubuntu, Linux Mint | `.deb` | `sudo apt install ./indicator-sticky-notes_*_all.deb` |
-| Fedora, RHEL, AlmaLinux, Rocky, RED OS | `.rpm` | `sudo dnf install ./indicator-sticky-notes-*.noarch.rpm` |
+| Fedora, RHEL, AlmaLinux, Rocky, RED OS | `.rpm` (берите под свою систему: `fc` Fedora, `el9` RHEL 9 и клоны, `red80` RED OS 8) | `sudo dnf install ./indicator-sticky-notes-*.noarch.rpm` |
 | Arch Linux, Manjaro, EndeavourOS | `.pkg.tar.zst` | `sudo pacman -U indicator-sticky-notes-*.pkg.tar.zst` |
 | Всё остальное | исходники | `./install.sh` или `./run.sh` (запуск без установки) |
 
@@ -139,7 +139,7 @@ sudo apt install ./build/indicator-sticky-notes_*_all.deb
 sudo dnf install ./build/indicator-sticky-notes-*.noarch.rpm
 ```
 
-Пакет `noarch` (чистый Python), он ставится на x86_64 и другие архитектуры.
+Пакет `noarch` (чистый Python, любой процессор), но привязан к версии Python системы, на которой собран, поэтому берите файл под свой дистрибутив или соберите сами.
 
 **Arch Linux, Manjaro.** Сборка через `makepkg` (нужны `base-devel` и `python-build python-installer python-setuptools python-wheel`; не запускайте от root):
 
