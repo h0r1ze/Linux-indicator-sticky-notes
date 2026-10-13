@@ -6,6 +6,7 @@ from gi.repository import Gtk  # noqa: E402
 
 from . import theme  # noqa: E402
 from .popup import AnchoredPopup  # noqa: E402
+from .i18n import _  # noqa: E402
 
 
 class PalettePopup(AnchoredPopup):
@@ -15,20 +16,20 @@ class PalettePopup(AnchoredPopup):
         self._on_custom = on_custom
         inner = self.inner
 
-        inner.pack_start(self.caption("Основные"), False, False, 0)
+        inner.pack_start(self.caption(_("Основные")), False, False, 0)
         row = Gtk.Box(spacing=6)
         for name, (_body, bar) in theme.PALETTE.items():
             row.pack_start(self._swatch(name, bar), False, False, 0)
         inner.pack_start(row, False, False, 0)
 
-        inner.pack_start(self.caption("Палитра"), False, False, 4)
+        inner.pack_start(self.caption(_("Палитра")), False, False, 4)
         grid = Gtk.Grid(row_spacing=6, column_spacing=6)
         for index, color in enumerate(theme.DESIGNER_PALETTE):
             col, line = index % theme.PALETTE_COLUMNS, index // theme.PALETTE_COLUMNS
             grid.attach(self._swatch(color, color), col, line, 1, 1)
         inner.pack_start(grid, False, False, 0)
 
-        custom = Gtk.Button(label="Свой цвет…")
+        custom = Gtk.Button(label=_("Свой цвет…"))
         custom.connect("clicked", self._on_custom_clicked)
         inner.pack_start(custom, False, False, 6)
         inner.show_all()

@@ -1,5 +1,5 @@
 Name:           indicator-sticky-notes
-Version:        0.2.3
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Sticky notes for the Linux desktop (GTK3)
 License:        MIT
@@ -45,6 +45,11 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{__python3} -m unittest discover -s t
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Oct 13 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.3.0-1
+- Interface language: Russian and English, switch in the tray menu and in the settings
+- Universal install.sh, package for Arch Linux, tested on Debian, Ubuntu, Fedora, RHEL clones, Arch, openSUSE
+- Note menu has a Sticky Notes submenu for desktops without a tray (GNOME)
+
 * Tue Oct 13 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.2.3-1
 - Renamed: indicat-sticky-notes -> indicator-sticky-notes (repository Linux-indicator-sticky-notes)
 - Notes and settings are moved from the old folders on first start

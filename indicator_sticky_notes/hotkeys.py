@@ -115,7 +115,7 @@ class _Worker(threading.Thread):
         grabs = {}  # (keycode, модификаторы) -> функция
         event = _XEvent()
         while True:
-            readable, _, _ = select.select([fd, self.wake_r], [], [])
+            readable, _w, _x = select.select([fd, self.wake_r], [], [])
             if self.wake_r in readable:
                 os.read(self.wake_r, 64)
                 while not self.requests.empty():

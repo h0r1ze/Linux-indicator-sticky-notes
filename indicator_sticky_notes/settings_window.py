@@ -6,10 +6,11 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gtk  # noqa: E402
 
 from . import autostart, colors, hotkeys, storage  # noqa: E402
+from .i18n import NATIVE_NAMES, _, N_  # noqa: E402
 
-THEME_LABELS = (("system", "Как в системе"), ("light", "Светлая"), ("dark", "Тёмная"))
-TRAY_LABELS = (("toggle", "Показать или скрыть все заметки"), ("manager", "Открыть менеджер заметок"))
-HOTKEYS = (("hotkey_new", "new", "Новая заметка"), ("hotkey_toggle", "toggle", "Показать или скрыть все"))
+THEME_LABELS = (("system", N_("Как в системе")), ("light", N_("Светлая")), ("dark", N_("Тёмная")))
+TRAY_LABELS = (("toggle", N_("Показать или скрыть все заметки")), ("manager", N_("Открыть менеджер заметок")))
+HOTKEYS = (("hotkey_new", "new", N_("Новая заметка")), ("hotkey_toggle", "toggle", N_("Показать или скрыть все")))
 ACCEL_MASK = (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK
               | Gdk.ModifierType.SHIFT_MASK | Gdk.ModifierType.SUPER_MASK)
 
@@ -17,14 +18,14 @@ ACCEL_MASK = (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK
 def accel_label(accel: str) -> str:
     """'<Primary><Alt>n' -> 'Ctrl+Alt+N' для показа пользователю."""
     if not accel:
-        return "не задано"
+        return _("не задано")
     key, mods = Gtk.accelerator_parse(accel)
     return Gtk.accelerator_get_label(key, mods) if key else accel
 
 
 class SettingsWindow(Gtk.Window):
     def __init__(self, app):
-        super().__init__(title="Настройки")
+        super().__init__(title=_("Настройки"))
         self.app = app
         self.settings = app.settings
         self._capturing = None  # ключ настройки, для которой ждём сочетание
@@ -38,50 +39,54 @@ class SettingsWindow(Gtk.Window):
         self.add(grid)
         self._row = 0
 
-        self.theme_combo = self._combo("Тема интерфейса", THEME_LABELS, self._on_theme)
-        self.color_combo = self._combo("Цвет новых заметок", self._color_choices(), self._on_color)
-        self.font_spin = self._spin("Размер шрифта по умолчанию, пт", 8, 40, self._on_font)
-        self.tray_combo = self._combo("Клик по значку в трее", TRAY_LABELS, self._on_tray)
-        self.trash_spin = self._spin("Хранить удалённые заметки, дней", 1, 365, self._on_trash)
+        self.language_combo = self._combo(
+            "Язык / Language",
+            (("system", _("Как в системе")), ("ru", NATIVE_NAMES["ru"]), ("en", NATIVE_NAMES["en"])),
+            self._on_language)
+        self.theme_combo = self._combo(_("Тема интерфейса"), THEME_LABELS, self._on_theme)
+        self.color_combo = self._combo(_("Цвет новых заметок"), self._color_choices(), self._on_color)
+        self.font_spin = self._spin(_("Размер шрифта по умолчанию, пт"), 8, 40, self._on_font)
+        self.tray_combo = self._combo(_("Клик по значку в трее"), TRAY_LABELS, self._on_tray)
+        self.trash_spin = self._spin(_("Хранить удалённые заметки, дней"), 1, 365, self._on_trash)
 
         self.autostart_switch = Gtk.Switch(halign=Gtk.Align.START)
         self.autostart_switch.connect(
             "notify::active", lambda s, _p: autostart.set_enabled(s.get_active())
         )
-        self._attach("Запускать при входе в систему", self.autostart_switch)
+        self._attach(_("Запускать при входе в систему"), self.autostart_switch)
 
         self.dash_switch = Gtk.Switch(halign=Gtk.Align.START)
         self.dash_switch.set_tooltip_text(
-            "Выключено: список с тире делают «-» и Tab. Включено: достаточно набрать «- » и пробел."
+            _("Выключено: список с тире делают «-» и Tab. Включено: достаточно набрать «- » и пробел.")
         )
         self.dash_switch.connect(
             "notify::active",
             lambda s, _p: None if self._loading else self.settings.update(dash_autoconvert=s.get_active()),
         )
-        self._attach("Автозамена «- » на длинное тире", self.dash_switch)
+        self._attach(_("Автозамена «- » на длинное тире"), self.dash_switch)
 
-        shortcut = Gtk.Button(label="Создать ярлык на рабочем столе", halign=Gtk.Align.START)
+        shortcut = Gtk.Button(label=_("Создать ярлык на рабочем столе"), halign=Gtk.Align.START)
         shortcut.connect("clicked", lambda _b: self.app.create_desktop_shortcut())
-        self._attach("Ярлык запуска", shortcut)
+        self._attach(_("Ярлык запуска"), shortcut)
 
-        self._section("Синхронизация")
+        self._section(_("Синхронизация"))
         self.dir_label = Gtk.Label(xalign=0, wrap=True, selectable=True, max_width_chars=44)
-        self._attach("Папка с заметками", self.dir_label)
+        self._attach(_("Папка с заметками"), self.dir_label)
         buttons = Gtk.Box(spacing=6)
-        choose = Gtk.Button(label="Выбрать папку…")
+        choose = Gtk.Button(label=_("Выбрать папку…"))
         choose.connect("clicked", lambda _b: self._choose_dir())
-        reset = Gtk.Button(label="По умолчанию")
+        reset = Gtk.Button(label=_("По умолчанию"))
         reset.connect("clicked", lambda _b: self.settings.update(data_dir=""))
         buttons.pack_start(choose, False, False, 0)
         buttons.pack_start(reset, False, False, 0)
         self._attach("", buttons)
         self._note(
-            "Чтобы синхронизировать заметки между компьютерами, выберите папку, которую "
+            _("Чтобы синхронизировать заметки между компьютерами, выберите папку, которую "
             "синхронизирует Syncthing, Nextcloud, Яндекс.Диск и т. п. Изменения с других "
-            "компьютеров подхватываются автоматически; при конфликте побеждает более новая правка."
+            "компьютеров подхватываются автоматически; при конфликте побеждает более новая правка.")
         )
 
-        self._section("Горячие клавиши")
+        self._section(_("Горячие клавиши"))
         self.hotkey_buttons, self.hotkey_labels = {}, {}
         for key, name, label in HOTKEYS:
             button = Gtk.Button()
@@ -90,7 +95,7 @@ class SettingsWindow(Gtk.Window):
             row = Gtk.Box(spacing=10)
             row.pack_start(button, False, False, 0)
             row.pack_start(status, False, False, 0)
-            self._attach(label, row)
+            self._attach(_(label), row)
             self.hotkey_buttons[key], self.hotkey_labels[name] = button, status
         self.hotkey_note = self._note("")
         self.connect("key-press-event", self._on_key_press)
@@ -127,7 +132,7 @@ class SettingsWindow(Gtk.Window):
     def _combo(self, title, choices, callback):
         combo = Gtk.ComboBoxText()
         for value, label in choices:
-            combo.append(value, label)
+            combo.append(value, _(label))
         combo.connect("changed", lambda c: None if self._loading else callback(c.get_active_id()))
         self._attach(title, combo)
         return combo
@@ -142,7 +147,7 @@ class SettingsWindow(Gtk.Window):
         choices = list(colors.NAMED_LABELS.items())
         current = self.settings["default_color"]
         if current not in colors.NAMED:
-            choices.append((current, f"Особый ({current})"))
+            choices.append((current, _("Особый ({color})").format(color=current)))
         return choices
 
     # --- значения ---
@@ -155,22 +160,26 @@ class SettingsWindow(Gtk.Window):
     def _load_values(self):
         self._loading = True
         s = self.settings
+        self.language_combo.set_active_id(s["language"])
         self.theme_combo.set_active_id(s["theme"])
         self.tray_combo.set_active_id(s["tray_click"])
         self.font_spin.set_value(s["default_font_size"])
         self.trash_spin.set_value(s["trash_days"])
         if not self.color_combo.set_active_id(s["default_color"]):
-            self.color_combo.append(s["default_color"], f"Особый ({s['default_color']})")
+            self.color_combo.append(s["default_color"], _("Особый ({color})").format(color=s["default_color"]))
             self.color_combo.set_active_id(s["default_color"])
         self.autostart_switch.set_active(autostart.is_enabled())
         self.dash_switch.set_active(s["dash_autoconvert"])
         folder = s["data_dir"]
-        self.dir_label.set_text(folder or f"По умолчанию ({storage.default_dir()})")
+        self.dir_label.set_text(folder or _("По умолчанию ({path})").format(path=storage.default_dir()))
         self._refresh_hotkeys()
         self._loading = False
 
     def _on_settings_changed(self, _changed):
         self._load_values()
+
+    def _on_language(self, value):
+        self.app.change_language(value)
 
     def _on_theme(self, value):
         self.settings.update(theme=value)
@@ -189,10 +198,10 @@ class SettingsWindow(Gtk.Window):
 
     def _choose_dir(self):
         dialog = Gtk.FileChooserDialog(
-            title="Папка с заметками", transient_for=self,
+            title=_("Папка с заметками"), transient_for=self,
             action=Gtk.FileChooserAction.SELECT_FOLDER,
         )
-        dialog.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Выбрать", Gtk.ResponseType.OK)
+        dialog.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Выбрать"), Gtk.ResponseType.OK)
         folder = dialog.get_filename() if dialog.run() == Gtk.ResponseType.OK else None
         dialog.destroy()
         if folder:
@@ -204,23 +213,23 @@ class SettingsWindow(Gtk.Window):
         for key, name, _label in HOTKEYS:
             capturing = self._capturing == key
             self.hotkey_buttons[key].set_label(
-                "Нажмите сочетание…" if capturing else accel_label(self.settings[key])
+                _("Нажмите сочетание…") if capturing else accel_label(self.settings[key])
             )
             status = self.app.hotkey_status.get(name)
             if not self.settings[key]:
-                text = "отключено"
+                text = _("отключено")
             elif not hotkeys.supported():
                 text = ""
             elif status is None:
                 text = ""
             else:
-                text = "✓ работает" if status else "⚠ занято другой программой"
+                text = _("✓ работает") if status else _("⚠ занято другой программой")
             self.hotkey_labels[name].set_text(text)
         self.hotkey_note.set_text(
-            "Нажмите на кнопку и затем сочетание с Ctrl, Alt, Shift или Super. "
-            "Backspace отключает сочетание, Esc отменяет."
+            _("Нажмите на кнопку и затем сочетание с Ctrl, Alt, Shift или Super. "
+            "Backspace отключает сочетание, Esc отменяет.")
             if hotkeys.supported()
-            else "Глобальные горячие клавиши недоступны: они работают только в сеансе X11 (не Wayland)."
+            else _("Глобальные горячие клавиши недоступны: они работают только в сеансе X11 (не Wayland).")
         )
 
     def _start_capture(self, key):

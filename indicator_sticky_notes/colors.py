@@ -1,5 +1,6 @@
 """Цветовая математика без GTK: подбор шапки и цвета текста под фон заметки."""
 import re
+from .i18n import N_
 
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -15,9 +16,9 @@ NAMED = {
     "midnight": ("#1f3a4d", "#2b4d66"),
 }
 NAMED_LABELS = {
-    "yellow": "Жёлтый", "green": "Зелёный", "blue": "Голубой", "pink": "Розовый",
-    "orange": "Оранжевый", "purple": "Сиреневый", "graphite": "Графитовый",
-    "midnight": "Тёмно-синий",
+    "yellow": N_("Жёлтый"), "green": N_("Зелёный"), "blue": N_("Голубой"), "pink": N_("Розовый"),
+    "orange": N_("Оранжевый"), "purple": N_("Сиреневый"), "graphite": N_("Графитовый"),
+    "midnight": N_("Тёмно-синий"),
 }
 
 DARK_TEXT = "#2b2518"

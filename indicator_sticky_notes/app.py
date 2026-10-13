@@ -12,6 +12,8 @@ from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 from . import autostart, backup, exchange, theme  # noqa: E402
 from .help_window import HelpWindow, build_about_dialog  # noqa: E402
 from .hotkeys import GlobalHotkeys  # noqa: E402
+from . import i18n  # noqa: E402
+from .i18n import _  # noqa: E402
 from .manager import ManagerWindow  # noqa: E402
 from .note_window import NoteWindow  # noqa: E402
 from .settings import Settings  # noqa: E402
@@ -41,6 +43,7 @@ class StickyApp(Gtk.Application):
         self.tray = None
         self._monitor = None
         self._reload_source = None
+        self.restart_requested = False  # после выхода main() запустит приложение заново
 
     # --- запуск и завершение ---
 
@@ -52,6 +55,7 @@ class StickyApp(Gtk.Application):
     def setup(self):
         """Настройки, заметки, автокопия, окна, значок в трее, клавиши, наблюдение за файлом."""
         self.settings.load()
+        i18n.set_language(self.settings["language"])
         if self.store is None:
             self.store = NoteStore(self.settings.notes_path())
         theme.install()
@@ -86,6 +90,16 @@ class StickyApp(Gtk.Application):
         self.hotkeys.stop()
         Gtk.Application.do_shutdown(self)
 
+    def change_language(self, value):
+        """Сохранить язык; если он поменялся, перезапустить приложение, чтобы он применился."""
+        self.settings.update(language=value)
+        if i18n.resolve(value) != i18n.current():
+            self.restart()
+
+    def restart(self):
+        self.restart_requested = True
+        self.quit()
+
     def shutdown_services(self):
         """Остановить потоки и наблюдателей (нужно тестам, которые не вызывают do_shutdown)."""
         self.hotkeys.stop()
@@ -97,9 +111,10 @@ class StickyApp(Gtk.Application):
 
     def _report_corrupt_file(self):
         self._message(
-            "Файл заметок был повреждён",
-            f"Он сохранён отдельно: {self.store.corrupt_file}\n"
-            "Приложение начало с пустого списка; восстановить заметки можно из резервной копии.",
+            _("Файл заметок был повреждён"),
+            _("Он сохранён отдельно: {path}\n"
+              "Приложение начало с пустого списка; восстановить заметки можно из резервной копии."
+              ).format(path=self.store.corrupt_file),
             Gtk.MessageType.WARNING,
         )
         return False
@@ -316,19 +331,19 @@ class StickyApp(Gtk.Application):
     def backup_now(self, path=None):
         """Сохранить копию заметок туда, куда укажет пользователь."""
         if not self.store.notes:
-            self._message("Копировать нечего", "Заметок пока нет.", Gtk.MessageType.INFO)
+            self._message(_("Копировать нечего"), _("Заметок пока нет."), Gtk.MessageType.INFO)
             return None
         path = path or self._choose_save_path(
-            "Сохранить резервную копию", backup.default_name(), folder=self._backup_folder()
+            _("Сохранить резервную копию"), backup.default_name(), folder=self._backup_folder()
         )
         if path is None:
             return None
         saved = backup.save_to(self.store.notes, path)
-        self._message("Копия сохранена", str(saved), Gtk.MessageType.INFO)
+        self._message(_("Копия сохранена"), str(saved), Gtk.MessageType.INFO)
         return saved
 
     def restore_backup(self):
-        paths = self._choose_files("Восстановить из копии", "*.json", "Копии заметок (*.json)",
+        paths = self._choose_files(_("Восстановить из копии"), "*.json", _("Копии заметок (*.json)"),
                                    folder=self._backup_folder())
         if paths:
             self.restore_from(paths[0])
@@ -337,13 +352,13 @@ class StickyApp(Gtk.Application):
         try:
             notes = backup.load(path)
         except ValueError as exc:
-            self._message("Не удалось открыть копию", str(exc), Gtk.MessageType.ERROR)
+            self._message(_("Не удалось открыть копию"), str(exc), Gtk.MessageType.ERROR)
             return False
         if confirm and not self._ask(
-            "Восстановить из копии?",
-            f"Сейчас заметок: {len(self.store.active_notes)}, в копии: "
-            f"{sum(1 for n in notes if n.active)}. Текущие заметки заменятся; "
-            "перед этим будет сделана отдельная копия.",
+            _("Восстановить из копии?"),
+            _("Сейчас заметок: {now}, в копии: {backup}. Текущие заметки заменятся; "
+              "перед этим будет сделана отдельная копия.").format(
+                now=len(self.store.active_notes), backup=sum(1 for n in notes if n.active)),
         ):
             return False
         backup.create(self.store.notes, "before-restore", self.backup_dir)
@@ -359,9 +374,9 @@ class StickyApp(Gtk.Application):
         try:
             path = autostart.create_desktop_shortcut()
         except OSError as exc:
-            self._message("Не удалось создать ярлык", str(exc), Gtk.MessageType.ERROR)
+            self._message(_("Не удалось создать ярлык"), str(exc), Gtk.MessageType.ERROR)
             return None
-        self._message("Ярлык создан", str(path), Gtk.MessageType.INFO)
+        self._message(_("Ярлык создан"), str(path), Gtk.MessageType.INFO)
         return path
 
     # --- экспорт и импорт ---
@@ -369,7 +384,7 @@ class StickyApp(Gtk.Application):
     def export_note(self, note, parent=None):
         """Сохранить одну заметку в файл: .md — с форматированием, иначе простой текст."""
         name = exchange.slug(note.display_title(60)) + ".md"
-        path = self._choose_save_path("Сохранить заметку", name, parent)
+        path = self._choose_save_path(_("Сохранить заметку"), name, parent)
         if path is None:
             return None
         path = Path(path)
@@ -381,24 +396,28 @@ class StickyApp(Gtk.Application):
 
     def export_markdown(self, path=None):
         """Все заметки одним Markdown-файлом."""
-        path = path or self._choose_save_path("Экспорт в Markdown", "стикеры.md")
+        path = path or self._choose_save_path(_("Экспорт в Markdown"), _("стикеры.md"))
         if path is None:
             return None
         Path(path).write_text(exchange.export_markdown(self.store.notes), encoding="utf-8")
-        self._message("Экспорт готов", str(path), Gtk.MessageType.INFO)
+        self._message(_("Экспорт готов"), str(path), Gtk.MessageType.INFO)
         return Path(path)
 
     def export_text_folder(self, folder=None):
         """Каждая заметка — отдельный .txt в выбранной папке."""
-        folder = folder or self._choose_folder("Папка для .txt файлов")
+        folder = folder or self._choose_folder(_("Папка для .txt файлов"))
         if folder is None:
             return []
         paths = exchange.export_text_files(self.store.notes, folder)
-        self._message("Экспорт готов", f"Сохранено файлов: {len(paths)}\n{folder}", Gtk.MessageType.INFO)
+        self._message(
+            _("Экспорт готов"),
+            _("Сохранено файлов: {count}\n{folder}").format(count=len(paths), folder=folder),
+            Gtk.MessageType.INFO,
+        )
         return paths
 
     def import_files(self):
-        paths = self._choose_files("Импорт заметок", "*", "Заметки (.json, .md, .txt)",
+        paths = self._choose_files(_("Импорт заметок"), "*", _("Заметки (.json, .md, .txt)"),
                                    multiple=True, patterns=("*.json", "*.md", "*.txt"))
         if paths:
             self._report_import(*self.import_paths(paths))
@@ -406,7 +425,8 @@ class StickyApp(Gtk.Application):
     def import_mint(self):
         path = exchange.default_mint_path()
         if not path.exists():
-            self._message("Mint Sticky не найден", f"Нет файла {path}", Gtk.MessageType.INFO)
+            self._message(_("Mint Sticky не найден"), _("Нет файла {path}").format(path=path),
+                          Gtk.MessageType.INFO)
             return
         self._report_import(*self.import_paths([path]))
 
@@ -433,10 +453,10 @@ class StickyApp(Gtk.Application):
         return added, errors
 
     def _report_import(self, added, errors):
-        text = f"Добавлено заметок: {added}"
+        text = _("Добавлено заметок: {count}").format(count=added)
         if errors:
-            text += "\n\nНе удалось разобрать:\n" + "\n".join(errors)
-        self._message("Импорт завершён", text,
+            text += _("\n\nНе удалось разобрать:\n") + "\n".join(errors)
+        self._message(_("Импорт завершён"), text,
                       Gtk.MessageType.WARNING if errors else Gtk.MessageType.INFO)
 
     # --- диалоги ---
@@ -464,7 +484,7 @@ class StickyApp(Gtk.Application):
     @staticmethod
     def _choose_files(title, pattern, label, folder=None, multiple=False, patterns=None):
         dialog = Gtk.FileChooserDialog(title=title, action=Gtk.FileChooserAction.OPEN)
-        dialog.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Открыть", Gtk.ResponseType.OK)
+        dialog.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Открыть"), Gtk.ResponseType.OK)
         dialog.set_select_multiple(multiple)
         if folder is not None:
             dialog.set_current_folder(str(folder))
@@ -481,7 +501,7 @@ class StickyApp(Gtk.Application):
     def _choose_save_path(title, name, parent=None, folder=None):
         dialog = Gtk.FileChooserDialog(title=title, action=Gtk.FileChooserAction.SAVE,
                                        transient_for=parent)
-        dialog.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Сохранить", Gtk.ResponseType.OK)
+        dialog.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Сохранить"), Gtk.ResponseType.OK)
         dialog.set_do_overwrite_confirmation(True)
         if folder is not None:
             dialog.set_current_folder(str(folder))
@@ -493,7 +513,7 @@ class StickyApp(Gtk.Application):
     @staticmethod
     def _choose_folder(title):
         dialog = Gtk.FileChooserDialog(title=title, action=Gtk.FileChooserAction.SELECT_FOLDER)
-        dialog.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Выбрать", Gtk.ResponseType.OK)
+        dialog.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Выбрать"), Gtk.ResponseType.OK)
         path = dialog.get_filename() if dialog.run() == Gtk.ResponseType.OK else None
         dialog.destroy()
         return path
@@ -506,7 +526,7 @@ class StickyApp(Gtk.Application):
 
     def _build_tray(self):
         self.tray = Gtk.StatusIcon.new_from_icon_name(self._icon_name())
-        self.tray.set_tooltip_text("Стикеры")
+        self.tray.set_tooltip_text(_("Стикеры"))
         self.tray.connect("activate", lambda _i: self.on_tray_click())
         self.tray.connect("popup-menu", self._on_tray_menu)
 
@@ -539,47 +559,51 @@ class StickyApp(Gtk.Application):
         def separator():
             menu.append(Gtk.SeparatorMenuItem())
 
-        action(menu, "Новая заметка", self.new_note)
-        action(menu, "Найти заметку…", self.open_search)
-        action(menu, "Менеджер заметок…", self.open_manager)
+        action(menu, _("Новая заметка"), self.new_note)
+        action(menu, _("Найти заметку…"), self.open_search)
+        action(menu, _("Менеджер заметок…"), self.open_manager)
         separator()
-        action(menu, "Показать все", self.show_all)
-        action(menu, "Скрыть все", self.hide_all)
+        action(menu, _("Показать все"), self.show_all)
+        action(menu, _("Скрыть все"), self.hide_all)
 
         groups = self.store.groups()
         if groups:
-            groups_menu = submenu("Группы")
+            groups_menu = submenu(_("Группы"))
             for name in groups:
                 head = Gtk.MenuItem(label=name)
                 sub = Gtk.Menu()
-                action(sub, "Показать группу", lambda n=name: self.set_group_visible(n, True))
-                action(sub, "Скрыть группу", lambda n=name: self.set_group_visible(n, False))
+                action(sub, _("Показать группу"), lambda n=name: self.set_group_visible(n, True))
+                action(sub, _("Скрыть группу"), lambda n=name: self.set_group_visible(n, False))
                 head.set_submenu(sub)
                 groups_menu.append(head)
         separator()
 
-        exchange_menu = submenu("Обмен данными")
-        action(exchange_menu, "Экспорт в Markdown…", self.export_markdown)
-        action(exchange_menu, "Экспорт в папку (.txt)…", self.export_text_folder)
+        exchange_menu = submenu(_("Обмен данными"))
+        action(exchange_menu, _("Экспорт в Markdown…"), self.export_markdown)
+        action(exchange_menu, _("Экспорт в папку (.txt)…"), self.export_text_folder)
         exchange_menu.append(Gtk.SeparatorMenuItem())
-        action(exchange_menu, "Импорт из файлов…", self.import_files)
-        action(exchange_menu, "Импорт из Mint Sticky", self.import_mint)
+        action(exchange_menu, _("Импорт из файлов…"), self.import_files)
+        action(exchange_menu, _("Импорт из Mint Sticky"), self.import_mint)
 
-        backups = submenu("Резервные копии")
-        action(backups, "Создать копию сейчас", self.backup_now)
-        action(backups, "Восстановить из копии…", self.restore_backup)
-        action(backups, "Открыть папку копий", self.open_backup_folder)
+        backups = submenu(_("Резервные копии"))
+        action(backups, _("Создать копию сейчас"), self.backup_now)
+        action(backups, _("Восстановить из копии…"), self.restore_backup)
+        action(backups, _("Открыть папку копий"), self.open_backup_folder)
 
-        startup = Gtk.CheckMenuItem(label="Запускать при входе")
+        startup = Gtk.CheckMenuItem(label=_("Запускать при входе"))
         startup.set_active(autostart.is_enabled())
         startup.connect("toggled", lambda item: autostart.set_enabled(item.get_active()))
         menu.append(startup)
-        action(menu, "Создать ярлык на рабочем столе", self.create_desktop_shortcut)
-        action(menu, "Настройки…", self.open_settings)
-        action(menu, "Справка   F1", self.open_help)
-        action(menu, "О программе", self.show_about)
+        action(menu, _("Создать ярлык на рабочем столе"), self.create_desktop_shortcut)
+        action(menu, _("Настройки…"), self.open_settings)
+        action(menu, _("Справка   F1"), self.open_help)
+        action(menu, _("О программе"), self.show_about)
+        # Подпись двуязычная намеренно: по ней язык находят, даже не понимая текущий.
+        other = "en" if i18n.current() == "ru" else "ru"
+        action(menu, "Language: English" if other == "en" else "Язык: Русский",
+               lambda: self.change_language(other))
 
         separator()
-        action(menu, "Выход", self.quit)
+        action(menu, _("Выход"), self.quit)
         menu.show_all()
         return menu

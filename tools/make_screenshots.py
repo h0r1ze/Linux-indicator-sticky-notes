@@ -6,6 +6,7 @@
              нарисованные в буфере с прозрачностью, поэтому видны скругления и тени);
   windows  — менеджер, настройки и меню как настоящие окна (снимается корневое окно).
 """
+import os
 import subprocess
 import sys
 import tempfile
@@ -28,7 +29,13 @@ from indicator_sticky_notes.palette import PalettePopup  # noqa: E402
 from indicator_sticky_notes.settings import Settings  # noqa: E402
 from indicator_sticky_notes.storage import NoteStore  # noqa: E402
 
-OUT = ROOT / "docs" / "images"
+LANG = os.environ.get("SHOT_LANG", "ru")  # ru → docs/images, en → docs/images/en
+OUT = ROOT / "docs" / "images" / ("en" if LANG == "en" else "")
+
+
+def T(ru, en):
+    """Текст сцены на нужном языке."""
+    return en if LANG == "en" else ru
 SCALE = 2  # масштаб рисунка: чёткие картинки на экранах с высоким разрешением
 
 
@@ -54,8 +61,9 @@ def make_app(notes):
     store = NoteStore(folder / "notes.json")
     for kwargs in notes:
         store.add(**kwargs)
-    app = StickyApp(store, folder / "backups", settings=Settings(folder / "settings.json"),
-                    use_hotkeys=False)
+    settings = Settings(folder / "settings.json")
+    settings.update(language=LANG)
+    app = StickyApp(store, folder / "backups", settings=settings, use_hotkeys=False)
     return app
 
 
@@ -96,7 +104,7 @@ class Canvas:
         cr.select_font_face("Noto Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
         cr.set_font_size(12)
         cr.move_to(self.width - 120, 17)
-        cr.show_text("Сб 10 окт  14:32")
+        cr.show_text(T("Сб 10 окт  14:32", "Sat 10 Oct  14:32"))
 
     def place(self, widget, x, y, width, height=1):
         off = Gtk.OffscreenWindow()
@@ -132,22 +140,32 @@ def note_card(window, collapsed=False):
 
 def scenes():
     Gdk.Screen.is_composited = lambda self: True  # скругление и тень, как с композитором
-    text_a = "☑ хлеб\n☑ сыр\n☐ молоко\n☐ яйца\nНе забыть сумку и скидочную карту"
-    text_b = "Идеи на неделю\n— тёмная тема\n— синхронизация\n— экспорт в Markdown"
-    text_c = "☑ закончить отчёт\n☐ созвон с командой\n☐ купить билеты"
-    text_f = "Жирный, курсив, подчёркнутый и зачёркнутый текст — всё как в редакторе"
+    text_a = T("☑ хлеб\n☑ сыр\n☐ молоко\n☐ яйца\nНе забыть сумку и скидочную карту",
+               "☑ bread\n☑ cheese\n☐ milk\n☐ eggs\nDon't forget the bag and the loyalty card")
+    text_b = T("Идеи на неделю\n— тёмная тема\n— синхронизация\n— экспорт в Markdown",
+               "Ideas for the week\n— dark theme\n— sync\n— export to Markdown")
+    text_c = T("☑ закончить отчёт\n☐ созвон с командой\n☐ купить билеты",
+               "☑ finish the report\n☐ team call\n☐ buy tickets")
+    text_f = T("Жирный, курсив, подчёркнутый и зачёркнутый текст — всё как в редакторе",
+               "Bold, italic, underlined and struck-through text, just like in an editor")
+    BOLD_A, ITALIC_A = T(("сумку", "скидочную карту"), ("bag", "loyalty card"))
+    BOLD_B = T("Идеи на неделю", "Ideas for the week")
+    F_MARKS = T(("Жирный", "курсив", "подчёркнутый", "зачёркнутый"),
+                ("Bold", "italic", "underlined", "struck-through"))
     notes = [
-        dict(title="Покупки", text=text_a, color="yellow", group="Дом", pinned=True, hidden=True,
-             formats=fmt(text_a, ("сумку", "bold"), ("скидочную карту", "italic"))),
-        dict(title="Проект", text=text_b, color="blue", group="Работа", hidden=True, font_size=14,
-             formats=fmt(text_b, ("Идеи на неделю", "bold"))),
-        dict(title="Пятница", text=text_c, color="graphite", group="Работа", hidden=True),
-        dict(title="Рецепт блинов", text="молоко, яйца, мука", color="green", group="Дом",
-             hidden=True, collapsed=True),
-        dict(text="Позвонить маме\nв воскресенье", color="pink", hidden=True, font_size=17),
-        dict(title="Форматирование", text=text_f, color="#c9f0e1", hidden=True,
-             formats=fmt(text_f, ("Жирный", "bold"), ("курсив", "italic"),
-                         ("подчёркнутый", "underline"), ("зачёркнутый", "strike"))),
+        dict(title=T("Покупки", "Shopping"), text=text_a, color="yellow", group=T("Дом", "Home"),
+             pinned=True, hidden=True, formats=fmt(text_a, (BOLD_A, "bold"), (ITALIC_A, "italic"))),
+        dict(title=T("Проект", "Project"), text=text_b, color="blue", group=T("Работа", "Work"),
+             hidden=True, font_size=14, formats=fmt(text_b, (BOLD_B, "bold"))),
+        dict(title=T("Пятница", "Friday"), text=text_c, color="graphite", group=T("Работа", "Work"),
+             hidden=True),
+        dict(title=T("Рецепт блинов", "Pancake recipe"), text=T("молоко, яйца, мука", "milk, eggs, flour"),
+             color="green", group=T("Дом", "Home"), hidden=True, collapsed=True),
+        dict(text=T("Позвонить маме\nв воскресенье", "Call mom\non Sunday"), color="pink",
+             hidden=True, font_size=17),
+        dict(title=T("Форматирование", "Formatting"), text=text_f, color="#c9f0e1", hidden=True,
+             formats=fmt(text_f, (F_MARKS[0], "bold"), (F_MARKS[1], "italic"),
+                         (F_MARKS[2], "underline"), (F_MARKS[3], "strike"))),
     ]
     app = make_app(notes)
     app.setup()
@@ -163,8 +181,8 @@ def scenes():
     canvas.save("hero.png")
 
     # палитра рядом с заметкой
-    app2 = make_app([dict(title="Покупки", text=text_a, color="yellow", pinned=True, hidden=True,
-                          formats=fmt(text_a, ("сумку", "bold"), ("скидочную карту", "italic")))])
+    app2 = make_app([dict(title=T("Покупки", "Shopping"), text=text_a, color="yellow", pinned=True,
+                          hidden=True, formats=fmt(text_a, (BOLD_A, "bold"), (ITALIC_A, "italic")))])
     app2.setup()
     pump(0.2)
     window = list(app2.windows.values())[0]
@@ -209,16 +227,21 @@ def popup_at(menu, x, y):
 
 
 def windows():
+    home, work = T("Дом", "Home"), T("Работа", "Work")
     texts = [
-        ("Покупки", "☑ хлеб\n☐ молоко\n☐ яйца", "yellow", "Дом", False),
-        ("Проект", "Идеи на неделю: тёмная тема, синхронизация", "blue", "Работа", False),
-        ("Пятница", "☑ отчёт\n☐ созвон", "graphite", "Работа", False),
-        ("Рецепт блинов", "молоко, яйца, мука", "green", "Дом", True),
-        ("", "Позвонить маме в воскресенье", "pink", "", True),
-        ("План отпуска", "Билеты, отель, маршрут", "orange", "Дом", False),
+        (T("Покупки", "Shopping"), T("☑ хлеб\n☐ молоко\n☐ яйца", "☑ bread\n☐ milk\n☐ eggs"),
+         "yellow", home, False),
+        (T("Проект", "Project"), T("Идеи на неделю: тёмная тема, синхронизация",
+                                    "Ideas for the week: dark theme, sync"), "blue", work, False),
+        (T("Пятница", "Friday"), T("☑ отчёт\n☐ созвон", "☑ report\n☐ call"), "graphite", work, False),
+        (T("Рецепт блинов", "Pancake recipe"), T("молоко, яйца, мука", "milk, eggs, flour"),
+         "green", home, True),
+        ("", T("Позвонить маме в воскресенье", "Call mom on Sunday"), "pink", "", True),
+        (T("План отпуска", "Holiday plan"), T("Билеты, отель, маршрут", "Tickets, hotel, route"),
+         "orange", home, False),
     ]
     notes = [dict(title=t, text=x, color=c, group=g, hidden=h) for t, x, c, g, h in texts]
-    old = dict(title="Старый черновик", text="не пригодился", group="Работа")
+    old = dict(title=T("Старый черновик", "Old draft"), text=T("не пригодился", "not needed"), group=work)
     app = make_app(notes + [old])
     app.setup()
     store = app.store
@@ -259,7 +282,7 @@ def windows():
         popup_at(menu, 8, 8)
         pump(0.6)
         head = next(i for i in menu.get_children()
-                    if isinstance(i, Gtk.MenuItem) and i.get_label() == "Размер шрифта")
+                    if isinstance(i, Gtk.MenuItem) and i.get_label() == T("Размер шрифта", "Font size"))
         menu.select_item(head)  # как при наведении: раскрывается подменю с ползунком
         pump(1.0)
         grab("font-slider-menu.png")

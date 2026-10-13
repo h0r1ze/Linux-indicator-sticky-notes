@@ -7,6 +7,7 @@ from pathlib import Path
 
 from . import checklist, storage
 from .storage import Note
+from .i18n import _
 
 EXPORT_MARK = "<!-- indicator-sticky-notes export v1 -->"
 _META = re.compile(r"^<!-- group: (.*?); updated: (.*?) -->$")
@@ -90,7 +91,7 @@ def _tasks_to_markdown(text, formats):
 
 
 def note_to_markdown(note):
-    title = note.display_title(80) or "Без названия"
+    title = note.display_title(80) or _("Без названия")
     text, formats = _tasks_to_markdown(note.text, note.formats)
     updated = datetime.fromtimestamp(note.updated).strftime("%Y-%m-%d %H:%M")
     group = note.group.replace("\n", " ").replace("-->", "")
@@ -105,7 +106,7 @@ def note_to_markdown(note):
 
 def export_markdown(notes):
     notes = [n for n in notes if n.active and not n.is_blank()]
-    header = [EXPORT_MARK, "# Стикеры", ""]
+    header = [EXPORT_MARK, _("# Стикеры"), ""]
     return "\n".join(header + [note_to_markdown(n) for n in notes])
 
 
@@ -161,10 +162,10 @@ def import_markdown_export(content):
 
 # --- txt-файлы ---------------------------------------------------------------
 
-def slug(name, fallback="заметка"):
+def slug(name, fallback=None):
     cleaned = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', " ", name).strip(" .")
     cleaned = re.sub(r"\s+", " ", cleaned)[:60].strip(" .")
-    return cleaned or fallback
+    return cleaned or fallback or _("заметка")
 
 
 def export_text_files(notes, directory):
@@ -288,13 +289,13 @@ def read_notes_file(path):
     try:
         content = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
-        raise ValueError(f"не удалось прочитать {path.name}: {exc}") from exc
+        raise ValueError(_("не удалось прочитать {name}: {error}").format(name=path.name, error=exc)) from exc
     suffix = path.suffix.lower()
     if suffix == ".json":
         try:
             data = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"{path.name}: неверный JSON") from exc
+            raise ValueError(_("{name}: неверный JSON").format(name=path.name)) from exc
         if looks_like_mint(data):
             return notes_from_mint(data)
         return storage.notes_from_data(data)
@@ -306,7 +307,7 @@ def read_notes_file(path):
 def _plain_note(path, content, markdown):
     title, body = path.stem, content.rstrip("\n")
     if markdown:
-        first, _, rest = body.partition("\n")
+        first, _sep, rest = body.partition("\n")
         if first.startswith("# "):
             title, body = first[2:].strip(), rest.lstrip("\n")
         lines = []

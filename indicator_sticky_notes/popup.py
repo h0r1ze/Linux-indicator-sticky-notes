@@ -51,7 +51,7 @@ class AnchoredPopup(Gtk.Window):
 
         self.connect("focus-out-event", self._on_focus_out)
         self.connect("key-press-event", self._on_key)
-        self.connect("delete-event", lambda *_: self.close_popup() or True)
+        self.connect("delete-event", lambda *_args: self.close_popup() or True)
 
     def _on_focus_out(self, *_args):
         if self.close_on_focus_out:

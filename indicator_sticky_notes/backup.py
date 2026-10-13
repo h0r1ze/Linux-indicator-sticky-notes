@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import storage
+from .i18n import _
 
 KEEP = 30
 AUTO_INTERVAL = timedelta(hours=20)
@@ -27,7 +28,7 @@ class Backup:
 def create(notes, reason="manual", directory=None, now=None):
     """Записать копию. Путь файла или None, если копировать нечего."""
     if reason not in REASONS:
-        raise ValueError(f"неизвестная причина копии: {reason}")
+        raise ValueError(f"unknown backup reason: {reason}")
     if not notes:
         return None
     directory = Path(directory) if directory else default_dir()
@@ -91,5 +92,5 @@ def load(path):
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"не удалось прочитать файл: {exc}") from exc
+        raise ValueError(_("не удалось прочитать файл: {error}").format(error=exc)) from exc
     return storage.notes_from_data(data)

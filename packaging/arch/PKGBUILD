@@ -1,0 +1,28 @@
+# Maintainer: h0r1ze <87946256+h0r1ze@users.noreply.github.com>
+pkgname=indicator-sticky-notes
+pkgver=0.3.0
+pkgrel=1
+pkgdesc='Sticky notes for the Linux desktop (GTK3): checklists, groups, trash, sync, tray icon'
+arch=('any')
+url='https://github.com/h0r1ze/Linux-indicator-sticky-notes'
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk3' 'libx11')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+conflicts=('indicat-sticky-notes')
+replaces=('indicat-sticky-notes')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')  # для AUR подставьте сумму: makepkg -g
+
+build() {
+    cd "Linux-$pkgname-$pkgver"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "Linux-$pkgname-$pkgver"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 "data/$pkgname.desktop" "$pkgdir/usr/share/applications/$pkgname.desktop"
+    install -Dm644 "data/icons/hicolor/scalable/apps/$pkgname.svg" \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

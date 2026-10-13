@@ -9,6 +9,7 @@ from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
 
 from . import theme  # noqa: E402
 from .keys import is_key  # noqa: E402
+from .i18n import _  # noqa: E402
 
 COL_ID, COL_DOT, COL_TITLE, COL_GROUP, COL_STATE, COL_TIME, COL_SORT = range(7)
 # Не "\0..." : GTK обрезает строки по NUL, и оба идентификатора превращались в "".
@@ -21,7 +22,7 @@ def format_time(stamp: float, now: float = None) -> str:
     local, today = time.localtime(stamp), time.localtime(now)
     if local[:3] == today[:3]:
         return time.strftime("%H:%M", local)
-    return time.strftime("%d.%m.%Y", local)
+    return time.strftime(_("%d.%m.%Y"), local)
 
 
 def _dim(renderer_args=None):
@@ -30,7 +31,7 @@ def _dim(renderer_args=None):
 
 class ManagerWindow(Gtk.Window):
     def __init__(self, app):
-        super().__init__(title="Заметки")
+        super().__init__(title=_("Заметки"))
         self.app = app
         self.store = app.store
         self._refresh_source = None
@@ -49,8 +50,8 @@ class ManagerWindow(Gtk.Window):
 
         self.notes_page = self._build_notes_page()
         self.trash_page = self._build_trash_page()
-        self.stack.add_titled(self.notes_page, "notes", "Заметки")
-        self.stack.add_titled(self.trash_page, "trash", "Корзина")
+        self.stack.add_titled(self.notes_page, "notes", _("Заметки"))
+        self.stack.add_titled(self.trash_page, "trash", _("Корзина"))
 
         self.store.listeners.append(self._schedule_refresh)
         self.connect("destroy", self._on_destroy)
@@ -83,7 +84,7 @@ class ManagerWindow(Gtk.Window):
         tree.connect("key-press-event", self._on_tree_key, model)
         tree.append_column(Gtk.TreeViewColumn("", Gtk.CellRendererText(), markup=COL_DOT))
         title_col = Gtk.TreeViewColumn(
-            "Заметка", Gtk.CellRendererText(ellipsize=Pango.EllipsizeMode.END), text=COL_TITLE
+            _("Заметка"), Gtk.CellRendererText(ellipsize=Pango.EllipsizeMode.END), text=COL_TITLE
         )
         title_col.set_expand(True)
         tree.append_column(title_col)
@@ -100,7 +101,7 @@ class ManagerWindow(Gtk.Window):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
 
         top = Gtk.Box(spacing=6)
-        self.search = Gtk.SearchEntry(placeholder_text="Поиск по заголовкам и тексту")
+        self.search = Gtk.SearchEntry(placeholder_text=_("Поиск по заголовкам и тексту"))
         self.search.connect("search-changed", lambda _e: self.refresh())
         top.pack_start(self.search, True, True, 0)
         self.group_combo = Gtk.ComboBoxText()
@@ -117,12 +118,12 @@ class ManagerWindow(Gtk.Window):
         page.pack_start(self.status, False, False, 0)
 
         buttons = Gtk.Box(spacing=6)
-        self.new_button = self._button("Новая", self.app.new_note)
-        self.show_button = self._button("Показать", self._show_selected)
-        self.hide_button = self._button("Скрыть", self._hide_selected)
-        self.show_group_button = self._button("Показать группу", lambda: self._set_group_visible(True))
-        self.hide_group_button = self._button("Скрыть группу", lambda: self._set_group_visible(False))
-        self.trash_button = self._button("В корзину", self._trash_selected)
+        self.new_button = self._button(_("Новая"), self.app.new_note)
+        self.show_button = self._button(_("Показать"), self._show_selected)
+        self.hide_button = self._button(_("Скрыть"), self._hide_selected)
+        self.show_group_button = self._button(_("Показать группу"), lambda: self._set_group_visible(True))
+        self.hide_group_button = self._button(_("Скрыть группу"), lambda: self._set_group_visible(False))
+        self.trash_button = self._button(_("В корзину"), self._trash_selected)
         for button in (self.new_button, self.show_button, self.hide_button,
                        self.show_group_button, self.hide_group_button):
             buttons.pack_start(button, False, False, 0)
@@ -130,13 +131,15 @@ class ManagerWindow(Gtk.Window):
         page.pack_start(buttons, False, False, 0)
         return page
 
+    def _trash_hint_markup(self):
+        text = _("Заметки хранятся в корзине {days} дн., потом удаляются навсегда.").format(
+            days=self.app.settings["trash_days"])
+        return f'<span size="small">{GLib.markup_escape_text(text)}</span>'
+
     def _build_trash_page(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         hint = Gtk.Label(halign=Gtk.Align.START, wrap=True)
-        hint.set_markup(
-            f'<span size="small">Заметки хранятся в корзине {self.app.settings["trash_days"]} '
-            "дн., потом удаляются навсегда.</span>"
-        )
+        hint.set_markup(self._trash_hint_markup())
         self.trash_hint = hint
         page.pack_start(hint, False, False, 0)
 
@@ -145,9 +148,9 @@ class ManagerWindow(Gtk.Window):
         page.pack_start(scroll, True, True, 0)
 
         buttons = Gtk.Box(spacing=6)
-        self.restore_button = self._button("Восстановить", self._restore_selected)
-        self.purge_button = self._button("Удалить навсегда", self._purge_selected)
-        self.empty_button = self._button("Очистить корзину", self._empty_trash)
+        self.restore_button = self._button(_("Восстановить"), self._restore_selected)
+        self.purge_button = self._button(_("Удалить навсегда"), self._purge_selected)
+        self.empty_button = self._button(_("Очистить корзину"), self._empty_trash)
         buttons.pack_start(self.restore_button, False, False, 0)
         buttons.pack_end(self.empty_button, False, False, 0)
         buttons.pack_end(self.purge_button, False, False, 0)
@@ -191,8 +194,8 @@ class ManagerWindow(Gtk.Window):
         groups = self.store.groups()
         self._updating_groups = True
         self.group_combo.remove_all()
-        self.group_combo.append(ALL_GROUPS, "Все группы")
-        self.group_combo.append(NO_GROUP, "Без группы")
+        self.group_combo.append(ALL_GROUPS, _("Все группы"))
+        self.group_combo.append(NO_GROUP, _("Без группы"))
         for name in groups:
             self.group_combo.append(name, name)
         if not self.group_combo.set_active_id(previous):
@@ -212,13 +215,14 @@ class ManagerWindow(Gtk.Window):
         for note in notes:
             self.model.append([
                 note.id, self._dot(note),
-                note.display_title() or "(пустая заметка)",
-                note.group, "скрыта" if note.hidden else "",
+                note.display_title() or _("(пустая заметка)"),
+                note.group, _("скрыта") if note.hidden else "",
                 format_time(note.updated), note.updated,
             ])
         total = len(self.store.active_notes)
         self.status.set_text(
-            f"Заметок: {total}" if len(notes) == total else f"Найдено {len(notes)} из {total}"
+            _("Заметок: {total}").format(total=total) if len(notes) == total
+            else _("Найдено {found} из {total}").format(found=len(notes), total=total)
         )
         self._select(self.tree, selected)
 
@@ -227,17 +231,14 @@ class ManagerWindow(Gtk.Window):
         for note in trash:
             self.trash_model.append([
                 note.id, self._dot(note),
-                note.display_title() or "(пустая заметка)",
-                "", "", f"удалена {format_time(note.deleted_at)}", note.deleted_at,
+                note.display_title() or _("(пустая заметка)"),
+                "", "", _("удалена {when}").format(when=format_time(note.deleted_at)), note.deleted_at,
             ])
         self._select(self.trash_tree, selected_trash)
         self.stack.child_set_property(
-            self.trash_page, "title", f"Корзина ({len(trash)})" if trash else "Корзина"
+            self.trash_page, "title", _("Корзина ({count})").format(count=len(trash)) if trash else _("Корзина")
         )
-        self.trash_hint.set_markup(
-            f'<span size="small">Заметки хранятся в корзине {self.app.settings["trash_days"]} '
-            "дн., потом удаляются навсегда.</span>"
-        )
+        self.trash_hint.set_markup(self._trash_hint_markup())
         self._update_buttons()
 
     @staticmethod
@@ -327,11 +328,11 @@ class ManagerWindow(Gtk.Window):
         ids = self._selected(self.trash_tree)
         if not ids:
             return
-        what = "Удалить заметку навсегда?" if len(ids) == 1 else f"Удалить навсегда заметки ({len(ids)})?"
-        if self._confirm(what, "Восстановить их будет нельзя."):
+        what = _("Удалить заметку навсегда?") if len(ids) == 1 else _("Удалить навсегда заметки ({count})?").format(count=len(ids))
+        if self._confirm(what, _("Восстановить их будет нельзя.")):
             for note_id in ids:
                 self.app.purge_note(note_id)
 
     def _empty_trash(self):
-        if self._confirm("Очистить корзину?", "Все заметки в ней будут удалены навсегда."):
+        if self._confirm(_("Очистить корзину?"), _("Все заметки в ней будут удалены навсегда.")):
             self.app.empty_trash()

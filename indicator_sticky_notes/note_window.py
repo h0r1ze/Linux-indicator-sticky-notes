@@ -12,6 +12,7 @@ from . import checklist, colors, theme  # noqa: E402
 from .keys import is_key  # noqa: E402
 from .palette import PalettePopup  # noqa: E402
 from .storage import Note  # noqa: E402
+from .i18n import _, N_  # noqa: E402
 
 SAVE_DELAY_MS = 500
 MIN_WIDTH, MIN_HEIGHT = 240, 140
@@ -27,16 +28,16 @@ FORMAT_TAGS = {
     "strike": {"strikethrough": True},
 }
 FORMAT_LABELS = {
-    "bold": "Жирный   Ctrl+B",
-    "italic": "Курсив   Ctrl+I",
-    "underline": "Подчёркнутый   Ctrl+U",
-    "strike": "Зачёркнутый   Ctrl+Shift+X",
+    "bold": N_("Жирный   Ctrl+B"),
+    "italic": N_("Курсив   Ctrl+I"),
+    "underline": N_("Подчёркнутый   Ctrl+U"),
+    "strike": N_("Зачёркнутый   Ctrl+Shift+X"),
 }
 
 
 class NoteWindow(Gtk.Window):
     def __init__(self, note: Note, app):
-        super().__init__(title="Заметка")
+        super().__init__(title=_("Заметка"))
         self.note = note
         self.app = app
         self.store = app.store
@@ -125,20 +126,20 @@ class NoteWindow(Gtk.Window):
         bar = Gtk.Box(spacing=2)
         bar.get_style_context().add_class("bar")
 
-        add = self._flat_button("+", "Новая заметка")
+        add = self._flat_button("+", _("Новая заметка"))
         add.connect("clicked", lambda _b: self.app.new_note())
         bar.pack_start(add, False, False, 0)
 
-        palette = self._flat_button("●", "Цвет")
+        palette = self._flat_button("●", _("Цвет"))
         palette.connect("clicked", lambda button: self._palette.toggle(button))
         bar.pack_start(palette, False, False, 0)
 
-        self.pin_button = self._flat_button("📌", "Закрепить поверх всех окон")
+        self.pin_button = self._flat_button("📌", _("Закрепить поверх всех окон"))
         self.pin_button.get_style_context().add_class("pin")
         self.pin_button.connect("clicked", lambda _b: self.set_pinned(not self.note.pinned))
         bar.pack_start(self.pin_button, False, False, 0)
 
-        check = self._flat_button("☑", "Чекбокс в строке (Ctrl+L)")
+        check = self._flat_button("☑", _("Чекбокс в строке (Ctrl+L)"))
         check.connect("clicked", lambda _b: self.toggle_checklist())
         bar.pack_start(check, False, False, 0)
 
@@ -146,12 +147,12 @@ class NoteWindow(Gtk.Window):
         self.title_label.get_style_context().add_class("title")
         bar.pack_start(self.title_label, True, True, 0)
 
-        delete = self._flat_button("×", "В корзину")
+        delete = self._flat_button("×", _("В корзину"))
         delete.get_style_context().add_class("danger")
         delete.connect("clicked", lambda _b: self.app.delete_note(self.note.id))
         bar.pack_end(delete, False, False, 0)
 
-        self.menu_button = self._flat_button("⋯", "Меню заметки")
+        self.menu_button = self._flat_button("⋯", _("Меню заметки"))
         self.menu_button.connect("clicked", lambda _b: self.popup_menu())
         bar.pack_end(self.menu_button, False, False, 0)
 
@@ -192,7 +193,7 @@ class NoteWindow(Gtk.Window):
         scroll.set_policy(Gtk.PolicyType.EXTERNAL, Gtk.PolicyType.AUTOMATIC)
         scroll.add(self.view)
 
-        self.placeholder = Gtk.Label(label="Напишите что-нибудь…")
+        self.placeholder = Gtk.Label(label=_("Напишите что-нибудь…"))
         self.placeholder.get_style_context().add_class("placeholder")
         self.placeholder.set_halign(Gtk.Align.START)
         self.placeholder.set_valign(Gtk.Align.START)
@@ -341,7 +342,7 @@ class NoteWindow(Gtk.Window):
         else:
             ctx.remove_class("active")
         self.pin_button.set_tooltip_text(
-            "Открепить" if self.note.pinned else "Закрепить поверх всех окон"
+            _("Открепить") if self.note.pinned else _("Закрепить поверх всех окон")
         )
 
     def set_collapsed(self, collapsed):
@@ -380,7 +381,7 @@ class NoteWindow(Gtk.Window):
     def _ask_text(self, title, placeholder, initial=""):
         """Небольшое окно с одним полем ввода. Возвращает строку или None при отмене."""
         dialog = Gtk.Dialog(title=title, transient_for=self, modal=True)
-        dialog.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Готово", Gtk.ResponseType.OK)
+        dialog.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Готово"), Gtk.ResponseType.OK)
         dialog.set_default_response(Gtk.ResponseType.OK)
         entry = Gtk.Entry(text=initial, activates_default=True, width_chars=32,
                           placeholder_text=placeholder)
@@ -394,7 +395,7 @@ class NoteWindow(Gtk.Window):
         return answer
 
     def edit_title(self):
-        title = self._ask_text("Заголовок заметки", "Заголовок", self.note.title)
+        title = self._ask_text(_("Заголовок заметки"), _("Заголовок"), self.note.title)
         if title is not None:
             self.set_title_text(title)
 
@@ -404,7 +405,7 @@ class NoteWindow(Gtk.Window):
         self._schedule_save()
 
     def ask_new_group(self):
-        group = self._ask_text("Новая группа", "Название группы")
+        group = self._ask_text(_("Новая группа"), _("Название группы"))
         if group and group.strip():
             self.set_group(group)
 
@@ -467,17 +468,17 @@ class NoteWindow(Gtk.Window):
         scale.set_size_request(190, -1)
         scale.set_value(self.effective_font_size())
         scale.add_mark(self.app.default_font_size(), Gtk.PositionType.BOTTOM, None)  # «по умолчанию»
-        scale.set_tooltip_text("Размер шрифта: потяните ползунок (отметка — размер по умолчанию)")
+        scale.set_tooltip_text(_("Размер шрифта: потяните ползунок (отметка — размер по умолчанию)"))
         box.pack_start(scale, True, True, 0)
         big = Gtk.Label()
         big.set_markup('<span size="x-large">A</span>')
         box.pack_start(big, False, False, 0)
-        value = Gtk.Label(label=f"{self.effective_font_size()} пт", width_chars=5, xalign=1)
+        value = Gtk.Label(label=_("{size} пт").format(size=self.effective_font_size()), width_chars=5, xalign=1)
         box.pack_start(value, False, False, 0)
 
         def on_change(widget):
             size = int(round(widget.get_value()))
-            value.set_text(f"{size} пт")
+            value.set_text(_("{size} пт").format(size=size))
             self.set_font_size(size)
 
         scale.connect("value-changed", on_change)
@@ -576,48 +577,55 @@ class NoteWindow(Gtk.Window):
             menu.append(head)
             return sub
 
-        item(menu, "Заголовок…", self.edit_title)
-        item(menu, "Развернуть" if self.note.collapsed else "Свернуть",
+        item(menu, _("Заголовок…"), self.edit_title)
+        item(menu, _("Развернуть") if self.note.collapsed else _("Свернуть"),
              lambda: self.set_collapsed(not self.note.collapsed))
         menu.append(Gtk.SeparatorMenuItem())
 
-        formats = submenu("Формат")
+        formats = submenu(_("Формат"))
         for name, label in FORMAT_LABELS.items():
+            label = _(label)
             item(formats, label, lambda n=name: self.toggle_format(n),
                  check=self.format_state(name))
         formats.append(Gtk.SeparatorMenuItem())
-        item(formats, "Чекбокс   Ctrl+L", self.toggle_checklist)
+        item(formats, _("Чекбокс   Ctrl+L"), self.toggle_checklist)
 
-        font = submenu("Размер шрифта")
+        font = submenu(_("Размер шрифта"))
         slider = self._font_slider_item()
         font.append(slider)
         self._bind_slider_drag(slider, (menu, font))
         font.append(Gtk.SeparatorMenuItem())
-        item(font, f"По умолчанию ({self.app.default_font_size()} пт)   Ctrl+0",
+        item(font, _("По умолчанию ({size} пт)   Ctrl+0").format(size=self.app.default_font_size()),
              lambda: self.change_font(0))
 
-        opacity = submenu("Прозрачность")
+        opacity = submenu(_("Прозрачность"))
         for value in OPACITIES:
             item(opacity, f"{int(value * 100)}%", lambda v=value: self.set_note_opacity(v),
                  check=abs(self._valid_opacity() - value) < 0.01)
 
-        groups = submenu("Группа")
-        item(groups, "Без группы", lambda: self.set_group(""), check=not self.note.group)
+        groups = submenu(_("Группа"))
+        item(groups, _("Без группы"), lambda: self.set_group(""), check=not self.note.group)
         for name in self.store.groups():
             item(groups, name, lambda n=name: self.set_group(n), check=self.note.group == name)
         groups.append(Gtk.SeparatorMenuItem())
-        item(groups, "Новая группа…", self.ask_new_group)
+        item(groups, _("Новая группа…"), self.ask_new_group)
 
         menu.append(Gtk.SeparatorMenuItem())
-        item(menu, "Сохранить как файл…", lambda: self.app.export_note(self.note, self))
-        item(menu, "В корзину", lambda: self.app.delete_note(self.note.id))
+        item(menu, _("Сохранить как файл…"), lambda: self.app.export_note(self.note, self))
+        item(menu, _("В корзину"), lambda: self.app.delete_note(self.note.id))
+
+        # То же, что в меню трея: пригодится там, где значка в трее нет (GNOME без расширения).
+        menu.append(Gtk.SeparatorMenuItem())
+        app_item = Gtk.MenuItem(label=_("Стикеры"))
+        app_item.set_submenu(self.app.build_tray_menu())
+        menu.append(app_item)
         menu.show_all()
         return menu
 
     # --- цвет ---
 
     def _choose_custom_color(self):
-        dialog = Gtk.ColorChooserDialog(title="Свой цвет", transient_for=self)
+        dialog = Gtk.ColorChooserDialog(title=_("Свой цвет"), transient_for=self)
         dialog.set_use_alpha(False)
         dialog.set_property("show-editor", True)
         current = Gdk.RGBA()

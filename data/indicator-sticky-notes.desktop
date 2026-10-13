@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Стикеры
-Name[en]=Sticky Notes
-Comment=Заметки на рабочем столе
-Comment[en]=Sticky notes for the desktop
+Name=Sticky Notes
+Name[ru]=Стикеры
+Comment=Sticky notes for the desktop
+Comment[ru]=Заметки на рабочем столе
 Exec=indicator-sticky-notes
 Icon=indicator-sticky-notes
 Terminal=false

@@ -21,6 +21,79 @@ jobs:
       - name: Unit and GUI tests (virtual X server)
         run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -t . -v
 
+  # Тесты, установщик и запуск программы в «родных» окружениях разных дистрибутивов.
+  distros:
+    name: ${{ matrix.name }}
+    needs: test
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian 12
+            image: debian:12
+            experimental: false
+            install: >-
+              apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y
+              git python3 python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
+              desktop-file-utils ca-certificates
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+            experimental: false
+            install: >-
+              apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y
+              git python3 python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
+              desktop-file-utils ca-certificates
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            experimental: false
+            install: >-
+              apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y
+              git python3 python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
+              desktop-file-utils ca-certificates
+          - name: Fedora
+            image: fedora:latest
+            experimental: false
+            install: >-
+              dnf install -y git python3 python3-gobject gtk3 libX11 xorg-x11-server-Xvfb
+              xorg-x11-xauth libXtst google-noto-sans-fonts desktop-file-utils
+          - name: AlmaLinux 9 (RHEL)
+            image: almalinux:9
+            experimental: false
+            install: >-
+              dnf install -y git python3 python3-gobject gtk3 libX11 xorg-x11-server-Xvfb
+              xorg-x11-xauth libXtst dejavu-sans-fonts desktop-file-utils
+          - name: Arch Linux
+            image: archlinux:latest
+            experimental: false
+            install: >-
+              pacman -Syu --noconfirm git python python-gobject gtk3 libx11 xorg-server-xvfb
+              xorg-xauth libxtst noto-fonts desktop-file-utils
+          - name: openSUSE Tumbleweed
+            image: opensuse/tumbleweed:latest
+            experimental: true
+            install: >-
+              zypper --non-interactive install git python3 python3-gobject python3-gobject-Gdk
+              typelib-1_0-Gtk-3_0 libX11-6 xorg-x11-server-Xvfb xauth libXtst6 noto-sans-fonts
+              desktop-file-utils
+    steps:
+      - name: Install dependencies
+        run: ${{ matrix.install }}
+      - uses: actions/checkout@v4
+      - name: Python version
+        run: python3 --version
+      - name: Unit and GUI tests
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          xvfb-run -a python3 -m unittest discover -s tests -t . -v
+      - name: Install with install.sh and start the program
+        run: |
+          ./install.sh --prefix /tmp/prefix --no-deps
+          ./tools/smoke.sh /tmp/prefix/bin/indicator-sticky-notes
+          ./install.sh --prefix /tmp/prefix --uninstall
+
   deb:
     needs: test
     runs-on: ubuntu-latest
@@ -49,3 +122,95 @@ jobs:
             sleep 10
           done
           gh release upload "$GITHUB_REF_NAME" build/*.deb --clobber
+
+  # Пакет .deb ставится и запускается на чистых Debian и Ubuntu.
+  deb-install:
+    name: install .deb on ${{ matrix.image }}
+    needs: deb
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["debian:12", "ubuntu:22.04", "ubuntu:24.04"]
+    steps:
+      - name: Install xvfb
+        run: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb xauth ca-certificates
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: indicator-sticky-notes-deb
+          path: pkg
+      - name: Install the package
+        run: DEBIAN_FRONTEND=noninteractive apt-get install -y ./pkg/*.deb
+      - name: Start the installed program
+        run: ./tools/smoke.sh indicator-sticky-notes
+
+  # .rpm собирается, ставится и запускается на Fedora и на AlmaLinux (клон RHEL).
+  rpm:
+    name: rpm on ${{ matrix.image }}
+    needs: test
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["fedora:latest", "almalinux:9"]
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y git rpm-build python3-devel python3-setuptools python3-rpm-macros \
+            desktop-file-utils tar gzip xorg-x11-server-Xvfb xorg-x11-xauth
+      - uses: actions/checkout@v4
+      - name: Build .rpm
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ./packaging/build-rpm.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: indicator-sticky-notes-rpm-${{ strategy.job-index }}
+          path: build/*.noarch.rpm
+      - name: Install the package
+        run: dnf install -y ./build/*.noarch.rpm
+      - name: Start the installed program
+        run: ./tools/smoke.sh indicator-sticky-notes
+
+  # Пакет для Arch Linux: собирается makepkg, ставится pacman, запускается.
+  arch:
+    needs: test
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    permissions:
+      contents: write
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm base-devel git sudo python python-build python-installer \
+            python-setuptools python-wheel python-gobject gtk3 libx11 xorg-server-xvfb xorg-xauth
+      - uses: actions/checkout@v4
+      - name: Build the package as an unprivileged user
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          useradd -m builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          su builder -c "git config --global --add safe.directory '$GITHUB_WORKSPACE'"
+          su builder -c "cd '$GITHUB_WORKSPACE' && ./packaging/build-arch.sh"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: indicator-sticky-notes-arch
+          path: build/*.pkg.tar.zst
+      - name: Install the package
+        run: pacman -U --noconfirm build/*.pkg.tar.zst
+      - name: Start the installed program
+        run: ./tools/smoke.sh indicator-sticky-notes
+      - name: Attach the package to the GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pacman -S --noconfirm github-cli
+          for attempt in 1 2 3 4 5 6; do
+            gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break
+            sleep 10
+          done
+          gh release upload "$GITHUB_REF_NAME" build/*.pkg.tar.zst --clobber --repo "$GITHUB_REPOSITORY"

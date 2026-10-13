@@ -254,7 +254,19 @@ class GuiTest(unittest.TestCase):
         self.assertEqual(labels, [
             "Новая заметка", "Найти заметку…", "Менеджер заметок…", "Показать все", "Скрыть все",
             "Обмен данными", "Резервные копии", "Запускать при входе",
-            "Создать ярлык на рабочем столе", "Настройки…", "Справка   F1", "О программе", "Выход"])
+            "Создать ярлык на рабочем столе", "Настройки…", "Справка   F1", "О программе", "Language: English",
+            "Выход"])
+
+    def test_note_menu_has_app_menu_for_desktops_without_tray(self):
+        (window,) = self.start({"text": "a"})
+        menu = window.build_menu()
+        entry = [i for i in menu.get_children()
+                 if isinstance(i, Gtk.MenuItem) and i.get_label() == "Стикеры"]
+        self.assertEqual(len(entry), 1)
+        labels = [i.get_label() for i in entry[0].get_submenu().get_children()
+                  if isinstance(i, Gtk.MenuItem)]
+        for needed in ("Менеджер заметок…", "Настройки…", "Справка   F1", "Выход"):
+            self.assertIn(needed, labels)
 
     def test_tray_menu_lists_groups_when_present(self):
         self.start({"text": "a", "group": "Работа"})

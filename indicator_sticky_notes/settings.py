@@ -14,11 +14,13 @@ DEFAULTS = {
     "hotkey_new": "<Primary><Alt>n",
     "hotkey_toggle": "<Primary><Alt>s",
     "trash_days": storage.TRASH_DAYS,
+    "language": "system",  # system | ru | en
     "dash_autoconvert": False,  # «- » в начале строки сразу превращать в длинное тире
 }
 CHOICES = {
     "tray_click": ("toggle", "manager"),
     "theme": ("system", "light", "dark"),
+    "language": ("system", "ru", "en"),
 }
 RANGES = {
     "default_font_size": (8, 40),

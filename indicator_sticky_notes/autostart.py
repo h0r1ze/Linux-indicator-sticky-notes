@@ -5,8 +5,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .i18n import _
+
 NAME = "indicator-sticky-notes.desktop"
-SHORTCUT_NAME = "Стикеры.desktop"
+
+
+def shortcut_name() -> str:
+    return _("Стикеры") + ".desktop"
 
 
 def autostart_path() -> Path:
@@ -31,8 +36,8 @@ def desktop_entry(autostart=True) -> str:
     return (
         "[Desktop Entry]\n"
         "Type=Application\n"
-        "Name=Стикеры\n"
-        "Comment=Заметки на рабочем столе\n"
+        f"Name={_('Стикеры')}\n"
+        f"Comment={_('Заметки на рабочем столе')}\n"
         f"Exec={exec_line}\n"
         f"{path_line}"
         f"Icon={icon}\n"
@@ -77,7 +82,7 @@ def create_desktop_shortcut() -> Path:
     """Создать на рабочем столе ярлык запуска. Возвращает путь к файлу."""
     folder = desktop_dir()
     folder.mkdir(parents=True, exist_ok=True)
-    path = folder / SHORTCUT_NAME
+    path = folder / shortcut_name()
     path.write_text(desktop_entry(autostart=False), encoding="utf-8")
     path.chmod(0o755)  # без права запуска файловые менеджеры показывают .desktop как текст
     if shutil.which("gio"):  # GNOME, Cinnamon, Nemo: ярлык надо пометить доверенным

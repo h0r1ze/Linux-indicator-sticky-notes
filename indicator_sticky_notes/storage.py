@@ -7,6 +7,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
+from .i18n import _
 
 DEFAULT_COLOR = "yellow"
 FORMAT_VERSION = 1
@@ -80,12 +81,12 @@ def notes_from_data(data) -> list:
     Бросает ValueError, если структура не похожа на файл заметок.
     """
     if not isinstance(data, dict) or not isinstance(data.get("notes"), list):
-        raise ValueError("нет списка заметок")
+        raise ValueError(_("нет списка заметок"))
     known = {f.name for f in fields(Note)}
     notes = []
     for item in data["notes"]:
         if not isinstance(item, dict):
-            raise ValueError("заметка не объект")
+            raise ValueError(_("заметка не объект"))
         notes.append(Note(**{k: v for k, v in item.items() if k in known}))
     return notes
 
@@ -141,7 +142,7 @@ class NoteStore:
         try:
             return notes_from_data(json.loads(self.path.read_text(encoding="utf-8")))
         except json.JSONDecodeError as exc:
-            raise ValueError(f"неверный JSON: {exc}") from exc
+            raise ValueError(_("неверный JSON: {error}").format(error=exc)) from exc
 
     def _set_aside_corrupt(self, exc):
         stamp = time.strftime("%Y%m%d-%H%M%S")
