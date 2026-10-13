@@ -102,7 +102,7 @@ have_gtk || die "Python cannot import GTK 3 (package python3-gi / python3-gobjec
 rm -rf "$lib"
 mkdir -p "$lib" "$bin" "$apps" "$icons"
 cp -r "$root/$module" "$lib/"
-find "$lib" -name __pycache__ -type d -prune -exec rm -rf {} +
+rm -rf "$lib/$module/__pycache__"
 install -m 644 "$root/data/icons/hicolor/scalable/apps/$app.svg" "$icons/$app.svg"
 
 # Команда запуска: не зависит от того, где лежит папка с исходниками.

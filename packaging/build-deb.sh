@@ -16,7 +16,7 @@ dist="$stage/usr/lib/python3/dist-packages"
 install -d "$dist" "$stage/usr/bin" "$stage/usr/share/applications" \
     "$stage/usr/share/icons/hicolor/scalable/apps" "$stage/usr/share/doc/indicator-sticky-notes"
 cp -r "$root/indicator_sticky_notes" "$dist/"
-find "$stage" -name __pycache__ -type d -prune -exec rm -rf {} +
+rm -rf "$dist/indicator_sticky_notes/__pycache__"
 install -m 755 "$root/bin/indicator-sticky-notes" "$stage/usr/bin/indicator-sticky-notes"
 sed -i '1s|.*|#!/usr/bin/python3|' "$stage/usr/bin/indicator-sticky-notes"
 install -m 644 "$root/data/indicator-sticky-notes.desktop" "$stage/usr/share/applications/"
@@ -24,8 +24,7 @@ install -m 644 "$root/data/icons/hicolor/scalable/apps/indicator-sticky-notes.sv
     "$stage/usr/share/icons/hicolor/scalable/apps/"
 install -m 644 "$root/LICENSE" "$stage/usr/share/doc/indicator-sticky-notes/copyright"
 install -m 644 "$root/README.md" "$stage/usr/share/doc/indicator-sticky-notes/README.md"
-find "$stage" -type d -exec chmod 755 {} +
-find "$dist" -type f -exec chmod 644 {} +
+chmod -R u=rwX,go=rX "$stage"
 
 mkdir -p "$stage/DEBIAN"
 cat > "$stage/DEBIAN/control" <<CONTROL
