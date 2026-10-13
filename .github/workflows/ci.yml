@@ -104,7 +104,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-setuptools dpkg-dev
+          sudo apt-get install -y dpkg-dev
       - name: Build .deb
         run: ./packaging/build-deb.sh
       - uses: actions/upload-artifact@v4

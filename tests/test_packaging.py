@@ -1,4 +1,6 @@
 """Упаковка: версии во всех пакетах совпадают, скрипты и ярлыки корректны."""
+import importlib.util
+import os
 import re
 import shutil
 import subprocess
@@ -51,6 +53,7 @@ class PackagingTest(unittest.TestCase):
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    @unittest.skipUnless(importlib.util.find_spec("setuptools"), "нет setuptools")
     def test_metadata_lives_in_setup_py_for_old_setuptools(self):
         """Старые setuptools (RHEL 9 и клоны) не читают [project] из pyproject.toml."""
         self.assertNotIn("[project]", read("pyproject.toml"))
@@ -64,6 +67,24 @@ class PackagingTest(unittest.TestCase):
         text = launcher.read_text(encoding="utf-8")
         self.assertIn("from indicator_sticky_notes.__main__ import main", text)
         self.assertNotIn("pkg_resources", text)  # без поиска метаданных пакета
+
+    def test_deb_tree_has_files_where_debian_expects_them(self):
+        """Дерево .deb: модуль в dist-packages, ничего в /usr/local, команда с системным python."""
+        env = {**os.environ, "STAGE_ONLY": "1"}
+        run = subprocess.run(["bash", str(ROOT / "packaging/build-deb.sh")], capture_output=True,
+                             text=True, env=env)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        stage = ROOT / "build/deb" / f"indicator-sticky-notes_{__version__}"
+        self.assertTrue((stage / "usr/lib/python3/dist-packages/indicator_sticky_notes/app.py").exists())
+        self.assertFalse((stage / "usr/local").exists())
+        launcher = stage / "usr/bin/indicator-sticky-notes"
+        self.assertEqual(launcher.read_text(encoding="utf-8").split("\n")[0], "#!/usr/bin/python3")
+        self.assertTrue(launcher.stat().st_mode & 0o111)
+        self.assertTrue((stage / "usr/share/applications/indicator-sticky-notes.desktop").exists())
+        self.assertTrue((stage / "usr/share/doc/indicator-sticky-notes/copyright").exists())
+        control = (stage / "DEBIAN/control").read_text(encoding="utf-8")
+        self.assertIn(f"Version: {__version__}", control)
+        self.assertIn("Replaces: indicat-sticky-notes", control)
 
     def test_installer_lists_package_managers_of_major_distributions(self):
         text = read("install.sh")

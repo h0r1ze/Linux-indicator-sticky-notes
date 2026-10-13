@@ -125,7 +125,7 @@ The settings also hold: language, theme, colour and font of new notes, the tray 
 
 ## Installation details
 
-**Debian, Ubuntu, Linux Mint.** A ready package is on the [releases page](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest), or build it yourself (needs `python3-setuptools` and `dpkg-deb`):
+**Debian, Ubuntu, Linux Mint.** A ready package is on the [releases page](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest), or build it yourself (needs only `dpkg-deb`):
 
 ```bash
 ./packaging/build-deb.sh

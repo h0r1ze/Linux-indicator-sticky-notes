@@ -125,7 +125,7 @@ indicator-sticky-notes
 
 ## Подробности установки
 
-**Debian, Ubuntu, Linux Mint.** Готовый пакет на странице [релизов](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest), или соберите сами (нужны `python3-setuptools` и `dpkg-deb`):
+**Debian, Ubuntu, Linux Mint.** Готовый пакет на странице [релизов](https://github.com/h0r1ze/Linux-indicator-sticky-notes/releases/latest), или соберите сами (нужен только `dpkg-deb`):
 
 ```bash
 ./packaging/build-deb.sh

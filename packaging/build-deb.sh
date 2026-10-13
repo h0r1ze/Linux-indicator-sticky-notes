@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Собирает .deb (Debian, Ubuntu, Linux Mint): ./packaging/build-deb.sh
-# Нужны python3-setuptools и dpkg-deb. STAGE_ONLY=1 — только подготовить дерево пакета.
+# Нужен dpkg-deb. STAGE_ONLY=1 — только подготовить дерево пакета.
 set -euo pipefail
 
 root="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
@@ -9,16 +9,23 @@ version="$(python3 -c 'import indicator_sticky_notes as m; print(m.__version__)'
 stage="$root/build/deb/indicator-sticky-notes_${version}"
 
 rm -rf "$stage"
-mkdir -p "$stage"
-python3 setup.py -q install --root="$stage" --prefix=/usr --single-version-externally-managed --record=/dev/null
 
-# setuptools кладёт модули в site-packages, а Debian ждёт dist-packages.
+# Файлы раскладываем сами, без setuptools: его раскладка зависит от дистрибутива сборки
+# (на Ubuntu setup.py install кладёт всё в /usr/local, и пакет не работает на других версиях).
 dist="$stage/usr/lib/python3/dist-packages"
-mkdir -p "$dist"
-for sp in "$stage"/usr/lib/python3*/site-packages; do
-    [ -d "$sp" ] && cp -a "$sp"/. "$dist"/ && rm -rf "$sp"
-done
+install -d "$dist" "$stage/usr/bin" "$stage/usr/share/applications" \
+    "$stage/usr/share/icons/hicolor/scalable/apps" "$stage/usr/share/doc/indicator-sticky-notes"
+cp -r "$root/indicator_sticky_notes" "$dist/"
 find "$stage" -name __pycache__ -type d -prune -exec rm -rf {} +
+install -m 755 "$root/bin/indicator-sticky-notes" "$stage/usr/bin/indicator-sticky-notes"
+sed -i '1s|.*|#!/usr/bin/python3|' "$stage/usr/bin/indicator-sticky-notes"
+install -m 644 "$root/data/indicator-sticky-notes.desktop" "$stage/usr/share/applications/"
+install -m 644 "$root/data/icons/hicolor/scalable/apps/indicator-sticky-notes.svg" \
+    "$stage/usr/share/icons/hicolor/scalable/apps/"
+install -m 644 "$root/LICENSE" "$stage/usr/share/doc/indicator-sticky-notes/copyright"
+install -m 644 "$root/README.md" "$stage/usr/share/doc/indicator-sticky-notes/README.md"
+find "$stage" -type d -exec chmod 755 {} +
+find "$dist" -type f -exec chmod 644 {} +
 
 mkdir -p "$stage/DEBIAN"
 cat > "$stage/DEBIAN/control" <<CONTROL
