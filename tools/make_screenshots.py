@@ -24,6 +24,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from indicator_sticky_notes import images, theme  # noqa: E402
 from indicator_sticky_notes.app import StickyApp  # noqa: E402
 from indicator_sticky_notes.palette import PalettePopup  # noqa: E402
 from indicator_sticky_notes.settings import Settings  # noqa: E402
@@ -194,6 +195,57 @@ def scenes():
     canvas.place(note_card(window), 20, 24, 320, 270)
     canvas.place(card, 250, 70, 320, 1)
     canvas.save("palette.png")
+
+    # связка из двух заметок и заметка с картинкой
+    stack_text = T("☑ созвон в 10:00\n☐ отправить отчёт", "☑ call at 10:00\n☐ send the report")
+    app3 = make_app([
+        dict(id="a" * 32, title=T("Сегодня", "Today"), text=stack_text, color="blue", hidden=True),
+        dict(id="b" * 32, title=T("Завтра", "Tomorrow"), text=T("— купить подарок\n— забрать посылку",
+                                                              "— buy a present\n— pick up the parcel"),
+             color="#c9f0e1", hidden=True, dock="a" * 32),
+        dict(title=T("Отпуск", "Holiday"), text=T("Вот это место:\n", "This is the place:\n"),
+             color="yellow", hidden=True),
+    ])
+    picture = _illustration(400, 240)
+    name = images.save_pixbuf(picture, images.images_dir(app3.store.path))
+    app3.store.notes[2].text += images.IMAGE_CHAR
+    app3.store.notes[2].images = [[len(app3.store.notes[2].text) - 1, name]]
+    app3.store.save()
+    app3.setup()
+    pump(0.3)
+    top, below, holiday = app3.store.notes
+    canvas = Canvas(760, 400, colors=("#41295a", "#2f0743"), panel=False)
+    margin = theme.SHADOW_MARGIN
+    for note, (x, y, w, h) in ((top, (20, 20, 330, 190)), (below, (20, 20 + 190 - 2 * margin, 330, 190)),
+                               (holiday, (390, 20, 340, 300))):
+        window = app3.windows[note.id]
+        window.update_unlink_button()
+        canvas.place(note_card(window), x, y, w, h)
+    canvas.save("stack.png")
+
+
+def _illustration(width, height):
+    """Картинка-пейзаж для примера вставленного изображения."""
+    surface = cairo.ImageSurface(cairo.FORMAT_RGB24, width, height)
+    cr = cairo.Context(surface)
+    sky = cairo.LinearGradient(0, 0, 0, height)
+    sky.add_color_stop_rgb(0, 0.99, 0.62, 0.42)
+    sky.add_color_stop_rgb(1, 0.98, 0.84, 0.55)
+    cr.set_source(sky)
+    cr.paint()
+    cr.set_source_rgb(1.0, 0.95, 0.75)
+    cr.arc(width * 0.68, height * 0.45, height * 0.16, 0, 6.2832)
+    cr.fill()
+    for shade, peaks in ((0.45, (0.0, 0.62, 0.25, 0.38, 0.55, 0.58, 0.8, 0.42, 1.0, 0.6)),
+                         (0.28, (0.0, 0.8, 0.3, 0.62, 0.6, 0.78, 1.0, 0.66))):
+        cr.set_source_rgb(shade * 0.6, shade * 0.5, shade)
+        cr.move_to(0, height)
+        for i in range(0, len(peaks), 2):
+            cr.line_to(peaks[i] * width, peaks[i + 1] * height)
+        cr.line_to(width, height)
+        cr.close_path()
+        cr.fill()
+    return Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
 
 
 # --- настоящие окна ------------------------------------------------------------

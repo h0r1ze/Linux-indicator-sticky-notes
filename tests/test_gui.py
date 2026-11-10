@@ -528,10 +528,11 @@ class GuiStage2Test(GuiTest):
     def test_footer_font_buttons(self):
         (window,) = self.start({"text": "a"})
         size = window.effective_font_size()
-        buttons = [b for b in window.grip.get_children() if isinstance(b, Gtk.Button)]
-        buttons[-1].clicked()  # A+
+        buttons = {b.get_tooltip_text(): b for b in window.grip.get_children()
+                   if isinstance(b, Gtk.Button)}
+        buttons["Крупнее (Ctrl++)"].clicked()
         self.assertEqual(window.effective_font_size(), size + 1)
-        buttons[-2].clicked()  # A−
+        buttons["Мельче (Ctrl+-)"].clicked()
         self.assertEqual(window.effective_font_size(), size)
 
     def test_collapse_button(self):
@@ -545,6 +546,156 @@ class GuiStage2Test(GuiTest):
         pump()
         self.assertFalse(window.note.collapsed)
         self.assertEqual(window.collapse_button.get_tooltip_text(), "Свернуть")
+
+    # --- связки ---
+
+    def margin(self, window):
+        from indicator_sticky_notes import theme
+        return theme.SHADOW_MARGIN if window._rounded else 0
+
+    def assert_under(self, child, parent):
+        px, py = parent.get_position()
+        self.assertEqual(tuple(child.get_position()),
+                         (px, py + parent.get_size()[1] - 2 * self.margin(parent)))
+
+    def test_dock_places_note_under_and_follows(self):
+        top, bottom = self.start({"text": "a", "x": 100, "y": 100}, {"text": "b", "x": 500, "y": 300})
+        self.assertFalse(top.unlink_button.get_visible())
+        self.assertTrue(self.app.dock(bottom.note.id, top.note.id))
+        pump(0.3)
+        self.assert_under(bottom, top)
+        self.assertEqual(bottom.get_size()[0], top.get_size()[0])
+        self.assertTrue(top.unlink_button.get_visible() and bottom.unlink_button.get_visible())
+        top.move(200, 150)
+        pump(0.3)
+        self.assert_under(bottom, top)
+        top.set_collapsed(True)  # свёрнутая верхняя — нижняя поднимается к шапке
+        pump(0.3)
+        self.assert_under(bottom, top)
+
+    def test_magnet_snaps_near_bottom_only(self):
+        top, other = self.start({"text": "a", "x": 100, "y": 100}, {"text": "b", "x": 600, "y": 100})
+        pump(0.2)
+        self.assertFalse(other.try_snap())  # далеко — не прилипает
+        x, y = top.get_position()
+        other.move(x + 10, y + top.get_size()[1] - 2 * self.margin(top) + 15)
+        pump(0.3)
+        self.assertTrue(other.try_snap())
+        pump(0.3)
+        self.assertEqual(other.note.dock, top.note.id)
+        self.assert_under(other, top)
+        self.assertFalse(top.try_snap())  # верхняя не может прилипнуть к собственной связке
+
+    def test_unlink_and_persistence(self):
+        a, b, c = self.start({"text": "a"}, {"text": "b"}, {"text": "c"})
+        self.app.dock(b.note.id, a.note.id)
+        self.app.dock(c.note.id, b.note.id)
+        self.assertEqual(self.app.stack_members(c), [a, b, c])
+        self.assertIs(self.app.stack_root(c), a)
+        self.assertFalse(self.app.dock(a.note.id, c.note.id))  # без колец
+        reloaded = NoteStore(self.store.path)
+        reloaded.load()
+        self.assertEqual(reloaded.get(c.note.id).dock, b.note.id)
+        b.unlink_button.clicked()
+        pump()
+        self.assertEqual([w.note.dock for w in (a, b, c)], ["", "", ""])
+        self.assertFalse(any(w.unlink_button.get_visible() for w in (a, b, c)))
+
+    def test_deleting_middle_note_keeps_stack(self):
+        a, b, c = self.start({"text": "a"}, {"text": "b"}, {"text": "c"})
+        self.app.dock(b.note.id, a.note.id)
+        self.app.dock(c.note.id, b.note.id)
+        self.app.delete_note(b.note.id)
+        pump(0.3)
+        self.assertEqual(c.note.dock, a.note.id)
+        self.assert_under(c, a)
+
+    def test_stack_survives_restart(self):
+        self.store.add(text="a", id="a" * 32)
+        self.store.add(text="b", dock="a" * 32)  # прикреплена к ещё не открытому окну
+        windows = self.start()
+        self.assertEqual(windows[1].note.dock, "a" * 32)
+        self.assertTrue(windows[1].unlink_button.get_visible())
+
+    # --- картинки ---
+
+    def make_png(self, name="pic.png", size=(40, 30)):
+        from gi.repository import GdkPixbuf
+        pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, *size)
+        pixbuf.fill(0x3366ccff)
+        path = Path(self.tmp.name) / name
+        pixbuf.savev(str(path), "png", [], [])
+        return path, pixbuf
+
+    def test_image_file_is_copied_inserted_and_restored(self):
+        (window,) = self.start({"text": "ab"})
+        path, _pixbuf = self.make_png()
+        buffer = window.view.get_buffer()
+        buffer.place_cursor(buffer.get_iter_at_offset(1))
+        self.assertEqual(window.insert_image_files([path]), 1)
+        window.flush()
+        note = window.note
+        self.assertEqual(note.text, "a\ufffcb")
+        (offset, name), = note.images
+        self.assertEqual(offset, 1)
+        self.assertTrue((self.store.path.parent / "images" / name).exists())
+        self.assertFalse(note.is_blank())
+        # После перезапуска на месте символа снова картинка.
+        self.app._close_window(note.id)
+        window = self.app._open_window(note)
+        pump()
+        self.assertIsNotNone(window.view.get_buffer().get_iter_at_offset(1).get_pixbuf())
+        self.assertEqual(window.collect_images(), [[1, name]])
+
+    def test_clipboard_image_is_pasted(self):
+        (window,) = self.start({"text": ""})
+        _path, pixbuf = self.make_png()
+        clipboard = window.view.get_clipboard(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_image(pixbuf)
+        pump()
+        window.view.emit("paste-clipboard")
+        pump()
+        self.assertEqual(len(window.collect_images()), 1)
+        name = window.collect_images()[0][1]
+        self.assertTrue(name.endswith(".png"))
+
+    def test_image_opens_in_viewer(self):
+        (window,) = self.start({"text": ""})
+        path, _pixbuf = self.make_png(size=(60, 40))
+        window.insert_image_files([path])
+        pump()
+        name = window.collect_images()[0][1]
+        viewer = window.open_image(name)
+        pump()
+        self.assertTrue(viewer.get_visible())
+        viewer.destroy()
+
+    def test_double_click_on_image_finds_it(self):
+        (window,) = self.start({"text": "ab"})
+        path, _pixbuf = self.make_png(size=(60, 40))
+        buffer = window.view.get_buffer()
+        buffer.place_cursor(buffer.get_iter_at_offset(2))
+        window.insert_image_files([path])
+        pump(0.3)
+        rect = window.view.get_iter_location(buffer.get_iter_at_offset(2))
+        wx, wy = window.view.buffer_to_window_coords(Gtk.TextWindowType.TEXT, rect.x + 20, rect.y + 10)
+        name = window.collect_images()[0][1]
+        self.assertEqual(window._image_at(wx, wy), name)
+        far = window.view.get_iter_location(buffer.get_iter_at_offset(0))
+        fx, fy = window.view.buffer_to_window_coords(Gtk.TextWindowType.TEXT, far.x + 1, far.y + 2)
+        self.assertIsNone(window._image_at(fx, fy))
+        opened = []
+        window.open_image = opened.append
+        raw = Gdk.Event.new(Gdk.EventType.DOUBLE_BUTTON_PRESS)  # держим ссылку на событие
+        event = raw.button
+        event.button, event.x, event.y = 1, wx, wy
+        self.assertTrue(window._on_view_press(None, event))
+        self.assertEqual(opened, [name])
+
+    def test_missing_image_keeps_its_place(self):
+        note = {"text": "x\ufffc", "images": [[1, "nope.png"]]}
+        (window,) = self.start(note)
+        self.assertEqual(window.collect_images(), [[1, "nope.png"]])
 
     def test_collapsed_state_persists(self):
         (window,) = self.start({"text": "a"})

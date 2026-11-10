@@ -8,7 +8,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Pango", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
 
-from . import checklist, colors, theme  # noqa: E402
+from . import checklist, colors, images, theme  # noqa: E402
 from .keys import is_key  # noqa: E402
 from .palette import PalettePopup  # noqa: E402
 from .storage import Note  # noqa: E402
@@ -19,6 +19,8 @@ SAVE_DELAY_MS = 500
 # сжать или сдвинуть. Такую геометрию не сохраняем, а потом возвращаем сохранённую.
 SETTLE_MS = 30000
 SCREEN_SETTLE_MS = 2000  # то же после смены разрешения или мониторов
+SNAP_DISTANCE = 24  # на столько пикселей шапку можно поднести к низу другой заметки, чтобы прилипла
+SNAP_DELAY_MS = 350  # перетаскивание считаем законченным, если окно столько не двигалось
 MIN_WIDTH, MIN_HEIGHT = 240, 140
 FONT_MIN, FONT_MAX = 8, 40
 FONT_RANGE = (FONT_MIN, FONT_MAX)
@@ -57,6 +59,7 @@ class NoteWindow(Gtk.Window):
         self._destroyed = False
         self._settle_source = None
         self._settling = False
+        self._drag_source = None  # ждём конца перетаскивания, чтобы проверить «магнит»
         self._font_provider = Gtk.CssProvider()
         self._placeholder_provider = Gtk.CssProvider()
 
@@ -169,6 +172,17 @@ class NoteWindow(Gtk.Window):
         self.collapse_button.connect("clicked", lambda _b: self.set_collapsed(not self.note.collapsed))
         bar.pack_end(self.collapse_button, False, False, 0)
 
+        self.unlink_button = self._flat_button("", _("Разъединить связку"))
+        self.unlink_button.remove(self.unlink_button.get_child())
+        links = Gtk.DrawingArea()
+        links.set_size_request(14, 12)
+        links.connect("draw", self._draw_links)
+        self.unlink_button.add(links)
+        self.unlink_button.set_no_show_all(True)  # видна только у заметок в связке
+        links.show()
+        self.unlink_button.connect("clicked", lambda _b: self.app.unlink_stack(self.note.id))
+        bar.pack_end(self.unlink_button, False, False, 0)
+
         self.menu_button = self._flat_button("⋯", _("Меню заметки"))
         self.menu_button.connect("clicked", lambda _b: self.popup_menu())
         bar.pack_end(self.menu_button, False, False, 0)
@@ -187,6 +201,7 @@ class NoteWindow(Gtk.Window):
         buffer = self.view.get_buffer()
         self._loading = True
         buffer.set_text(self.note.text)
+        self._apply_saved_images()
         self.done_tag = buffer.create_tag("done", strikethrough=True)
         for name, props in FORMAT_TAGS.items():
             buffer.create_tag(name, **props)
@@ -203,6 +218,11 @@ class NoteWindow(Gtk.Window):
         self.view.connect("button-press-event", self._on_view_press)
         self.view.connect_after("motion-notify-event", self._on_view_motion)
         self.view.connect("scroll-event", self._on_scroll)
+        self.view.connect("paste-clipboard", self._on_paste)
+        targets = self.view.drag_dest_get_target_list() or Gtk.TargetList.new([])
+        targets.add_uri_targets(0)
+        self.view.drag_dest_set_target_list(targets)
+        self.view.connect("drag-data-received", self._on_drag_received)
 
         scroll = Gtk.ScrolledWindow()
         # EXTERNAL, а не NEVER: иначе минимальная ширина окна равна самой
@@ -247,6 +267,9 @@ class NoteWindow(Gtk.Window):
             button = self._tool_button(markup, tooltip)
             button.connect("clicked", lambda _b, d=delta: self.change_font(d))
             footer.pack_start(button, False, False, 0)
+        picture = self._tool_button("🖼", _("Вставить картинку (или Ctrl+V, перетаскивание файла)"))
+        picture.connect("clicked", lambda _b: self.choose_image())
+        footer.pack_start(picture, False, False, 0)
         footer.pack_end(self._build_grip(), False, False, 0)
         return footer
 
@@ -315,7 +338,11 @@ class NoteWindow(Gtk.Window):
         if abs(event.x_root - self._press[0]) + abs(event.y_root - self._press[1]) > 4:
             self._press = None
             self._stop_settling()
-            self.begin_move_drag(1, int(event.x_root), int(event.y_root), event.time)
+            # Связку тянем целиком: двигаем верхнюю заметку, остальные едут за ней.
+            root = self.app.stack_root(self)
+            root._stop_settling()
+            root._start_drag_watch()
+            root.begin_move_drag(1, int(event.x_root), int(event.y_root), event.time)
         return True
 
     def _on_grip_press(self, _widget, event):
@@ -353,6 +380,9 @@ class NoteWindow(Gtk.Window):
         return False
 
     def _on_configure(self, _widget, _event):
+        self.layout_stack()
+        if self._drag_source is not None:
+            self._start_drag_watch()
         if self._settling:
             return False
         x, y = self.get_position()
@@ -374,6 +404,9 @@ class NoteWindow(Gtk.Window):
     def _on_destroy(self, _widget):
         self._destroyed = True
         self._stop_settling()
+        if self._drag_source is not None:
+            GLib.source_remove(self._drag_source)
+            self._drag_source = None
         screen = self.get_screen()
         for handler in self._screen_handlers:
             screen.disconnect(handler)
@@ -440,6 +473,70 @@ class NoteWindow(Gtk.Window):
             self.resize(max(self.note.width, MIN_WIDTH), 1)
         else:
             self.resize(max(self.note.width, MIN_WIDTH), max(self.note.height, MIN_HEIGHT))
+
+    # --- связка ---
+
+    def layout_stack(self):
+        """Прикреплённую снизу заметку поставить вплотную под эту."""
+        child = self.app.dock_child(self.note.id)
+        if child is None or not self.get_visible() or not child.get_visible():
+            return
+        x, y = self.get_position()
+        height = self.get_size()[1]
+        margin = theme.SHADOW_MARGIN if self._rounded else 0
+        target = (x, y + height - 2 * margin)
+        if tuple(child.get_position()) != target:
+            child.move(*target)
+
+    def _start_drag_watch(self):
+        if self._drag_source is not None:
+            GLib.source_remove(self._drag_source)
+        self._drag_source = GLib.timeout_add(SNAP_DELAY_MS, self._end_drag)
+
+    def _end_drag(self):
+        self._drag_source = None
+        if not self._destroyed:
+            self.try_snap()
+        return False
+
+    def try_snap(self):
+        """«Магнит»: шапка рядом с низом другой заметки — прикрепиться к ней. True, если прилипла."""
+        if self.note.dock or not self.get_visible():
+            return False
+        margin = theme.SHADOW_MARGIN if self._rounded else 0
+        x, y = self.get_position()
+        own = self.app.stack_members(self)
+        for other in list(self.app.windows.values()):
+            if other in own or not other.get_visible() or self.app.dock_child(other.note.id):
+                continue
+            ox, oy = other.get_position()
+            bottom = oy + other.get_size()[1] - 2 * margin
+            if abs(y - bottom) <= SNAP_DISTANCE and abs(x - ox) <= SNAP_DISTANCE * 3:
+                return self.app.dock(self.note.id, other.note.id)
+        return False
+
+    def update_unlink_button(self):
+        in_stack = self.note.dock in self.app.windows or self.app.dock_child(self.note.id) is not None
+        self.unlink_button.set_visible(in_stack)
+
+    def _draw_links(self, area, cr):
+        """Два звена цепочки цветом кнопок шапки."""
+        color = self.unlink_button.get_style_context().get_color(self.unlink_button.get_state_flags())
+        width, height = area.get_allocated_width(), area.get_allocated_height()
+        cr.set_source_rgba(color.red, color.green, color.blue, color.alpha)
+        cr.set_line_width(1.8)
+        link_w, link_h, radius = 8, 5, 2.5
+        for dx in (-2.5, 2.5):
+            left = width / 2 + dx - link_w / 2
+            top = height / 2 - link_h / 2
+            cr.new_sub_path()
+            cr.arc(left + link_w - radius, top + radius, radius, -1.5708, 0)
+            cr.arc(left + link_w - radius, top + link_h - radius, radius, 0, 1.5708)
+            cr.arc(left + radius, top + link_h - radius, radius, 1.5708, 3.1416)
+            cr.arc(left + radius, top + radius, radius, 3.1416, 4.7124)
+            cr.close_path()
+        cr.stroke()
+        return False
 
     def _draw_chevron(self, area, cr):
         """Галочка ˄ (свернуть) или ˅ (развернуть) цветом и толщиной как у ×."""
@@ -764,7 +861,7 @@ class NoteWindow(Gtk.Window):
         if self._loading:
             return
         start, end = buffer.get_bounds()
-        self.note.text = buffer.get_text(start, end, True)
+        self.note.text = buffer.get_slice(start, end, True)
         self._update_placeholder()
         self._update_title_label()
         if not self._busy:
@@ -779,7 +876,135 @@ class NoteWindow(Gtk.Window):
 
     def _text(self):
         buffer = self.view.get_buffer()
-        return buffer.get_text(*buffer.get_bounds(), True)
+        return buffer.get_slice(*buffer.get_bounds(), True)
+
+    # --- картинки ---
+
+    @property
+    def images_dir(self):
+        return images.images_dir(self.store.path)
+
+    def _thumb_width(self):
+        return max(60, min(images.THUMB_MAX, self.note.width - 2 * theme.SHADOW_MARGIN - 40))
+
+    def _apply_saved_images(self):
+        """Символы картинок из note.text заменить миниатюрами."""
+        buffer = self.view.get_buffer()
+        for offset, name in sorted(self.note.images, key=lambda item: item[0]):
+            it = buffer.get_iter_at_offset(offset)
+            if it.get_char() != images.IMAGE_CHAR or it.get_pixbuf() is not None:
+                continue
+            after = it.copy()
+            after.forward_char()
+            buffer.delete(it, after)
+            buffer.insert_pixbuf(it, images.thumbnail(self.images_dir, name, self._thumb_width()))
+
+    def collect_images(self):
+        """[[смещение, имя файла], ...] для всех картинок в тексте."""
+        buffer = self.view.get_buffer()
+        result = []
+        for offset, char in enumerate(self._text()):
+            if char == images.IMAGE_CHAR:
+                name = images.name_of(buffer.get_iter_at_offset(offset).get_pixbuf())
+                if name:
+                    result.append([offset, name])
+        return result
+
+    def insert_image(self, name, where=None):
+        """Вставить картинку (уже лежащую в папке images/) в позицию курсора или where."""
+        buffer = self.view.get_buffer()
+        if where is None and buffer.get_has_selection():
+            buffer.delete_selection(True, True)
+        it = where if where is not None else buffer.get_iter_at_mark(buffer.get_insert())
+        buffer.insert_pixbuf(it, images.thumbnail(self.images_dir, name, self._thumb_width()))
+        buffer.place_cursor(it)
+        self.note.images = self.collect_images()
+        self._schedule_save()
+
+    def insert_image_files(self, paths, where=None):
+        """Скопировать файлы-картинки в папку заметок и вставить. Возвращает число вставленных."""
+        count = 0
+        buffer = self.view.get_buffer()
+        mark = buffer.create_mark(None, where, False) if where is not None else None
+        for path in paths:
+            if not images.is_image_file(path):
+                continue
+            try:
+                name = images.import_file(path, self.images_dir)
+            except OSError:
+                continue
+            self.insert_image(name, buffer.get_iter_at_mark(mark) if mark else None)
+            count += 1
+        if mark is not None:
+            buffer.delete_mark(mark)
+        return count
+
+    def _on_paste(self, view):
+        """Ctrl+V: файлы-картинки и изображения из буфера обмена вставляются картинками."""
+        clipboard = view.get_clipboard(Gdk.SELECTION_CLIPBOARD)
+        paths = []
+        if clipboard.wait_is_uris_available():
+            paths = [GLib.filename_from_uri(uri)[0] for uri in clipboard.wait_for_uris() or []
+                     if uri.startswith("file://")]
+        if paths and self.insert_image_files(paths):
+            view.stop_emission_by_name("paste-clipboard")
+            return
+        if clipboard.wait_is_image_available() and not clipboard.wait_is_text_available():
+            pixbuf = clipboard.wait_for_image()
+            if pixbuf is not None:
+                try:
+                    self.insert_image(images.save_pixbuf(pixbuf, self.images_dir))
+                except (OSError, GLib.Error):
+                    return
+                view.stop_emission_by_name("paste-clipboard")
+
+    def _on_drag_received(self, view, context, x, y, data, _info, time):
+        uris = data.get_uris() or []
+        paths = [GLib.filename_from_uri(uri)[0] for uri in uris if uri.startswith("file://")]
+        if not paths:
+            return
+        bx, by = view.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, x, y)
+        found = view.get_iter_at_location(bx, by)
+        where = found[1] if isinstance(found, tuple) else found
+        if self.insert_image_files(paths, where):
+            view.stop_emission_by_name("drag-data-received")
+            Gtk.drag_finish(context, True, False, time)
+
+    def choose_image(self):
+        dialog = Gtk.FileChooserNative.new(_("Вставить картинку"), self, Gtk.FileChooserAction.OPEN,
+                                           _("Вставить"), _("Отмена"))
+        dialog.set_select_multiple(True)
+        image_filter = Gtk.FileFilter()
+        image_filter.set_name(_("Картинки"))
+        image_filter.add_pixbuf_formats()
+        dialog.add_filter(image_filter)
+        if dialog.run() == Gtk.ResponseType.ACCEPT:
+            self.insert_image_files([f.get_path() for f in dialog.get_files() if f.get_path()])
+        dialog.destroy()
+
+    def _image_at(self, x, y):
+        """Имя картинки под точкой (x, y) окна текста или None."""
+        bx, by = self.view.window_to_buffer_coords(Gtk.TextWindowType.TEXT, int(x), int(y))
+        found = self.view.get_iter_at_location(bx, by)
+        it = found[1] if isinstance(found, tuple) else found
+        if it is None:
+            return None
+        candidate = it.copy()
+        for _step in range(2):  # под курсором или сразу перед ним
+            pixbuf = candidate.get_pixbuf()
+            name = images.name_of(pixbuf)
+            if name:
+                rect = self.view.get_iter_location(candidate)
+                if rect.x <= bx < rect.x + pixbuf.get_width() and rect.y <= by < rect.y + rect.height:
+                    return name
+            if not candidate.backward_char():
+                break
+        return None
+
+    def open_image(self, name):
+        viewer = images.ImageViewer(self.images_dir / name)
+        viewer.show_all()
+        return viewer
 
     # --- форматирование ---
 
@@ -1130,7 +1355,12 @@ class NoteWindow(Gtk.Window):
         return None
 
     def _on_view_press(self, _widget, event):
-        """Клик по квадратику ☐/☑ переключает галочку."""
+        """Клик по квадратику ☐/☑ переключает галочку, двойной по картинке открывает её."""
+        if event.button == 1 and event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
+            name = self._image_at(event.x, event.y)
+            if name:
+                self.open_image(name)
+                return True
         if event.button != 1 or event.type != Gdk.EventType.BUTTON_PRESS:
             return False
         start = self._checkbox_at(event.x, event.y)
@@ -1215,6 +1445,7 @@ class NoteWindow(Gtk.Window):
             if self._text() != self.note.text:
                 cursor = buffer.get_iter_at_mark(buffer.get_insert()).get_offset()
                 buffer.set_text(self.note.text)
+                self._apply_saved_images()
                 buffer.place_cursor(buffer.get_iter_at_offset(min(cursor, buffer.get_char_count())))
             for name in FORMAT_TAGS:
                 buffer.remove_tag_by_name(name, *buffer.get_bounds())
@@ -1244,6 +1475,7 @@ class NoteWindow(Gtk.Window):
     def _save_now(self):
         self._save_source = None
         self.note.formats = self.collect_formats()
+        self.note.images = self.collect_images()
         self.store.save()
         return False
 
@@ -1253,4 +1485,5 @@ class NoteWindow(Gtk.Window):
             GLib.source_remove(self._save_source)
             self._save_source = None
         self.note.formats = self.collect_formats()
+        self.note.images = self.collect_images()
         self.store.save()

@@ -9,7 +9,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import autostart, backup, exchange, theme  # noqa: E402
+from . import autostart, backup, exchange, images, theme  # noqa: E402
 from .help_window import HelpWindow, build_about_dialog  # noqa: E402
 from .hotkeys import GlobalHotkeys  # noqa: E402
 from . import i18n  # noqa: E402
@@ -129,7 +129,74 @@ class StickyApp(Gtk.Application):
         self.windows[note.id] = window
         if not note.hidden:
             window.show_all()
+        self.refresh_stacks()
         return window
+
+    # --- связки: заметки, прикреплённые одна под другой ---
+
+    def dock_child(self, note_id):
+        """Окно заметки, прикреплённой к низу note_id, или None."""
+        for window in self.windows.values():
+            if window.note.dock == note_id and window.note.id != note_id:
+                return window
+        return None
+
+    def stack_root(self, window):
+        """Верхняя заметка связки, в которой лежит window."""
+        seen = {window.note.id}
+        while window.note.dock in self.windows and window.note.dock not in seen:
+            window = self.windows[window.note.dock]
+            seen.add(window.note.id)
+        return window
+
+    def stack_members(self, window):
+        """Все окна связки сверху вниз."""
+        members, current = [], self.stack_root(window)
+        while current is not None and current not in members:
+            members.append(current)
+            current = self.dock_child(current.note.id)
+        return members
+
+    def dock(self, note_id, parent_id):
+        """Прикрепить note_id к низу parent_id: та же ширина, вплотную под ней."""
+        child, parent = self.windows.get(note_id), self.windows.get(parent_id)
+        if child is None or parent is None or note_id == parent_id:
+            return False
+        members = self.stack_members(child)
+        below = members[members.index(child):]  # сама заметка и всё, что висит под ней
+        if self.dock_child(parent_id) is not None or parent in below:
+            return False
+        child.note.dock = parent_id
+        child.resize(parent.get_size()[0], child.get_size()[1])
+        parent.layout_stack()
+        # Оконный менеджер может не принять сдвиг сразу после перетаскивания: повторим.
+        GLib.timeout_add(200, lambda: parent.layout_stack() if not parent._destroyed else None)
+        self.refresh_stacks()
+        self.store.save()
+        return True
+
+    def unlink_stack(self, note_id):
+        """Разъединить всю связку; заметки чуть раздвигаются, чтобы было видно."""
+        window = self.windows.get(note_id)
+        if window is None:
+            return
+        members = self.stack_members(window)
+        for step, member in enumerate(members[1:], 1):
+            member.note.dock = ""
+            x, y = member.get_position()
+            member.move(x, y + 12 * step)
+        self.refresh_stacks()
+        self.store.save()
+
+    def refresh_stacks(self):
+        """Ссылки на удалённые заметки убрать, кнопки «разъединить» обновить."""
+        for window in self.windows.values():
+            dock = window.note.dock
+            target = self.store.get(dock) if dock else None
+            if dock and (target is None or not target.active or dock == window.note.id):
+                window.note.dock = ""
+        for window in self.windows.values():
+            window.update_unlink_button()
 
     def new_note(self):
         # Каждая следующая заметка немного смещается, чтобы не лечь ровно поверх.
@@ -150,7 +217,14 @@ class StickyApp(Gtk.Application):
         note = self.store.get(note_id)
         if note is None:
             return
+        child = self.dock_child(note_id)
+        if child is not None:  # связка не рвётся: нижняя заметка цепляется к верхней
+            child.note.dock = note.dock
+        note.dock = ""
         self._close_window(note_id)
+        self.refresh_stacks()
+        if child is not None and child.note.dock in self.windows:
+            self.windows[child.note.dock].layout_stack()
         if note.is_blank():
             self.store.purge(note_id)  # без корзины, но «надгробие» не даст ей вернуться при синхронизации
         else:
@@ -389,17 +463,21 @@ class StickyApp(Gtk.Application):
             return None
         path = Path(path)
         if path.suffix.lower() == ".md":
-            path.write_text(exchange.export_markdown([note]), encoding="utf-8")
+            path.write_text(exchange.export_markdown([note], self._images_dir()), encoding="utf-8")
         else:
-            path.write_text(note.text, encoding="utf-8")
+            path.write_text(exchange.note_to_text(note, self._images_dir()), encoding="utf-8")
         return path
+
+    def _images_dir(self):
+        return images.images_dir(self.store.path)
 
     def export_markdown(self, path=None):
         """Все заметки одним Markdown-файлом."""
         path = path or self._choose_save_path(_("Экспорт в Markdown"), _("стикеры.md"))
         if path is None:
             return None
-        Path(path).write_text(exchange.export_markdown(self.store.notes), encoding="utf-8")
+        Path(path).write_text(exchange.export_markdown(self.store.notes, self._images_dir()),
+                              encoding="utf-8")
         self._message(_("Экспорт готов"), str(path), Gtk.MessageType.INFO)
         return Path(path)
 
@@ -408,7 +486,7 @@ class StickyApp(Gtk.Application):
         folder = folder or self._choose_folder(_("Папка для .txt файлов"))
         if folder is None:
             return []
-        paths = exchange.export_text_files(self.store.notes, folder)
+        paths = exchange.export_text_files(self.store.notes, folder, self._images_dir())
         self._message(
             _("Экспорт готов"),
             _("Сохранено файлов: {count}\n{folder}").format(count=len(paths), folder=folder),

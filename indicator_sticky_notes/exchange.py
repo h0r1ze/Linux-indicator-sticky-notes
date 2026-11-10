@@ -90,7 +90,24 @@ def _tasks_to_markdown(text, formats):
     return "\n".join(out), moved
 
 
-def note_to_markdown(note):
+def with_images(text, note, render):
+    """Символы картинок в text заменить на render(имя файла) по порядку note.images."""
+    names = [item[1] for item in sorted(note.images, key=lambda item: item[0])]
+    out, index = [], 0
+    for char in text:
+        if char == storage.IMAGE_CHAR:
+            out.append(render(names[index]) if index < len(names) else "")
+            index += 1
+        else:
+            out.append(char)
+    return "".join(out)
+
+
+def _images_dir(images_dir):
+    return Path(images_dir) if images_dir else storage.default_dir() / "images"
+
+
+def note_to_markdown(note, images_dir=None):
     title = note.display_title(80) or _("Без названия")
     text, formats = _tasks_to_markdown(note.text, note.formats)
     updated = datetime.fromtimestamp(note.updated).strftime("%Y-%m-%d %H:%M")
@@ -99,15 +116,21 @@ def note_to_markdown(note):
         f"## {title}",
         f"<!-- group: {group}; updated: {updated} -->",
         "",
-        apply_formats(text, formats).rstrip("\n"),
+        with_images(apply_formats(text, formats), note,
+                    lambda name: f"![]({(_images_dir(images_dir) / name).as_uri()})").rstrip("\n"),
         "",
     ])
 
 
-def export_markdown(notes):
+def export_markdown(notes, images_dir=None):
     notes = [n for n in notes if n.active and not n.is_blank()]
     header = [EXPORT_MARK, _("# Стикеры"), ""]
-    return "\n".join(header + [note_to_markdown(n) for n in notes])
+    return "\n".join(header + [note_to_markdown(n, images_dir) for n in notes])
+
+
+def note_to_text(note, images_dir=None):
+    """Простой текст; на месте картинки — путь к её файлу."""
+    return with_images(note.text, note, lambda name: str(_images_dir(images_dir) / name))
 
 
 def _markdown_to_text(markdown):
@@ -168,7 +191,7 @@ def slug(name, fallback=None):
     return cleaned or fallback or _("заметка")
 
 
-def export_text_files(notes, directory):
+def export_text_files(notes, directory, images_dir=None):
     """По одному .txt на заметку; имена не повторяются. Возвращает список путей."""
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -181,7 +204,7 @@ def export_text_files(notes, directory):
         while path.exists():
             n += 1
             path = directory / f"{base} ({n}).txt"
-        path.write_text(note.text, encoding="utf-8")
+        path.write_text(note_to_text(note, images_dir), encoding="utf-8")
         paths.append(path)
     return paths
 

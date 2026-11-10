@@ -10,6 +10,7 @@ from pathlib import Path
 from .i18n import _
 
 DEFAULT_COLOR = "yellow"
+IMAGE_CHAR = "\ufffc"  # место картинки в тексте (см. images.py)
 FORMAT_VERSION = 1
 
 
@@ -41,6 +42,8 @@ class Note:
     font_size: int = 0  # пт; 0 — размер по умолчанию из настроек
     group: str = ""
     formats: list = field(default_factory=list)  # [[начало, конец, "bold"], ...]
+    images: list = field(default_factory=list)  # [[смещение, "имя файла"], ...] в папке images/
+    dock: str = ""  # id заметки, к низу которой прикреплена эта (связка)
     deleted_at: float = 0.0  # когда отправлена в корзину; 0 — не в корзине
     purged: bool = False  # удалена из корзины; остаётся «надгробием» для синхронизации
 
@@ -54,7 +57,7 @@ class Note:
 
     def preview(self, limit: int = 60) -> str:
         """Первая непустая строка текста для списков."""
-        for line in self.text.splitlines():
+        for line in self.text.replace(IMAGE_CHAR, "").splitlines():
             line = line.strip()
             if line:
                 return line if len(line) <= limit else line[: limit - 1] + "…"
@@ -65,12 +68,12 @@ class Note:
         return self.title.strip() or self.preview(limit)
 
     def is_blank(self) -> bool:
-        return not self.text.strip() and not self.title.strip()
+        return not self.text.replace(IMAGE_CHAR, "").strip() and not self.images and not self.title.strip()
 
 
 # Поля, которые на каждом компьютере свои: при слиянии у уже известных заметок
 # не перезаписываются (окно лежит в разных местах разных экранов).
-LOCAL_FIELDS = ("x", "y", "width", "height", "pinned", "hidden", "collapsed")
+LOCAL_FIELDS = ("x", "y", "width", "height", "pinned", "hidden", "collapsed", "dock")
 TRASH_DAYS = 30
 TOMBSTONE_DAYS = 30
 
@@ -266,6 +269,7 @@ class NoteStore:
         note.purged = True
         note.text = note.title = note.group = ""
         note.formats = []
+        note.images = []
         note.updated = now
         if not note.deleted_at:
             note.deleted_at = now

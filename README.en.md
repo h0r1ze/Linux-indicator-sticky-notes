@@ -82,7 +82,7 @@ The app restarts by itself and your notes stay where they were.
 
 ### Write the way you like
 
-- **Bottom toolbar** with B I U S, ☑ and A− A+ buttons (dimmed, brighter on hover)
+- **Bottom toolbar** with B I U S, ☑, A− A+ and 🖼 buttons (dimmed, brighter on hover)
 - **Formatting:** bold `Ctrl+B`, italic `Ctrl+I`, underline `Ctrl+U`, strikethrough `Ctrl+Shift+X`. Shortcuts work in any keyboard layout
 - **Checkboxes:** the ☑ button or `Ctrl+L`, typing `[ ] ` becomes ☐, Enter continues the list, a click on the box ticks it and finished items are struck through
 - **Word-style dash lists:** type `-` and `Tab` (autoconversion of `- ` plus space can be switched on in the settings; by default a hyphen stays a hyphen). Enter continues the list (on an empty item it goes up a level or ends the list), `Tab` and `Shift+Tab` indent and outdent (up to three levels), Backspace right after the marker removes it. Wrapped lines align under the text
@@ -94,6 +94,13 @@ The app restarts by itself and your notes stay where they were.
 &nbsp;&nbsp;&nbsp;
 <img src="docs/images/en/tray-menu.png" alt="Tray icon menu" height="230">
 </div>
+
+### Stacks and pictures
+
+<img src="docs/images/en/stack.png" alt="Two notes in a stack and a note with a picture" width="100%">
+
+- **Stacks:** bring a note's header to the bottom of another note and it snaps right under it, taking the same width. Drag a stack by any header and it moves as a whole; a collapsed top note pulls the ones below up. The chain button in the header splits the stack
+- **Pictures:** `Ctrl+V` pastes a screenshot or a copied file; you can also drop a file onto a note or press 🖼 at the bottom. The note shows a thumbnail, a double click opens the picture in a separate window. Files are copied to the `images` folder next to the notes and sync with them; Markdown export turns them into links
 
 ### Keep things in order
 
@@ -167,6 +174,7 @@ The app runs as a single instance: starting it again just shows the notes. To ru
 | What | Where |
 |---|---|
 | Notes | `~/.local/share/indicator-sticky-notes/notes.json` (or the chosen sync folder) |
+| Pictures | the `images` folder next to `notes.json` |
 | Automatic backups | `~/.local/share/indicator-sticky-notes/backups/` |
 | Settings | `~/.config/indicator-sticky-notes/settings.json` |
 

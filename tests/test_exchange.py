@@ -55,6 +55,19 @@ class MarkdownTest(unittest.TestCase):
         self.assertEqual(exchange.import_markdown_export(exchange.export_markdown([])), [])
 
 
+class ImagesExportTest(unittest.TestCase):
+    def test_images_become_links_and_paths(self):
+        note = Note(text="фото: \ufffc и \ufffc", images=[[6, "a.png"], [10, "b.jpg"]])
+        md = exchange.export_markdown([note], "/data/images")
+        self.assertIn("фото: ![](file:///data/images/a.png) и ![](file:///data/images/b.jpg)", md)
+        self.assertEqual(exchange.note_to_text(note, "/data/images"),
+                         "фото: /data/images/a.png и /data/images/b.jpg")
+
+    def test_note_with_only_an_image_is_not_blank(self):
+        self.assertFalse(Note(text="\ufffc", images=[[0, "a.png"]]).is_blank())
+        self.assertEqual(Note(text="\ufffc текст").preview(), "текст")
+
+
 class TextFilesTest(unittest.TestCase):
     def test_slug(self):
         self.assertEqual(exchange.slug('a/b:c*d?"e"'), "a b c d e")
