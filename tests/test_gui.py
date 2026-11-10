@@ -486,6 +486,36 @@ class GuiStage2Test(GuiTest):
         self.assertFalse(window.note.collapsed)
         self.assertGreaterEqual(window.get_size()[1], 200)
 
+    def test_startup_geometry_is_not_saved_and_is_restored(self):
+        # После перезагрузки окно сжимали, пока запускался сеанс, а возвращало его
+        # только «свернуть-развернуть».
+        (window,) = self.start({"text": "a", "width": 300, "height": 400})
+        window.resize(300, 180)
+        pump(0.3)
+        self.assertLess(window.get_size()[1], 300)
+        self.assertEqual(window.note.height, 400)
+        window._end_settle()
+        pump(0.3)
+        self.assertEqual(window.get_size()[1], 400)
+        window.resize(300, 250)  # дальше размер снова сохраняется
+        pump(0.3)
+        self.assertEqual(window.note.height, 250)
+
+    def test_screen_change_restores_saved_geometry(self):
+        (window,) = self.start({"text": "a", "width": 300, "height": 400})
+        window._end_settle()
+        window.get_screen().emit("monitors-changed")
+        self.assertTrue(window._settling)
+        window.resize(300, 180)
+        pump(0.3)
+        self.assertEqual(window.note.height, 400)
+
+    def test_user_resize_ends_settling(self):
+        (window,) = self.start({"text": "a"})
+        window._stop_settling()
+        self.assertFalse(window._settling)
+        self.assertIsNone(window._settle_source)
+
     def test_collapsed_state_persists(self):
         (window,) = self.start({"text": "a"})
         window.set_collapsed(True)

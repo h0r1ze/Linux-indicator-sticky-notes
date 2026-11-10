@@ -15,6 +15,10 @@ from .storage import Note  # noqa: E402
 from .i18n import _, N_  # noqa: E402
 
 SAVE_DELAY_MS = 500
+# Пока запускается сеанс (оконный менеджер, панель, настройки экрана), окно могут
+# сжать или сдвинуть. Такую геометрию не сохраняем, а потом возвращаем сохранённую.
+SETTLE_MS = 30000
+SCREEN_SETTLE_MS = 2000  # то же после смены разрешения или мониторов
 MIN_WIDTH, MIN_HEIGHT = 240, 140
 FONT_MIN, FONT_MAX = 8, 40
 FONT_RANGE = (FONT_MIN, FONT_MAX)
@@ -51,6 +55,8 @@ class NoteWindow(Gtk.Window):
         self._cursors = {}
         self._hang_tags = set()  # имена тегов висячего отступа списков
         self._destroyed = False
+        self._settle_source = None
+        self._settling = False
         self._font_provider = Gtk.CssProvider()
         self._placeholder_provider = Gtk.CssProvider()
 
@@ -108,6 +114,11 @@ class NoteWindow(Gtk.Window):
         self.connect("key-press-event", self._on_window_key)
         self.connect("delete-event", self._on_close)
         self.connect("map", lambda _w: self._apply_collapsed())
+        self._screen_handlers = [
+            screen.connect(signal, lambda *_a: self._settle(SCREEN_SETTLE_MS))
+            for signal in ("size-changed", "monitors-changed")
+        ]
+        self._settle(SETTLE_MS)
 
     # --- построение интерфейса ---
 
@@ -265,11 +276,13 @@ class NoteWindow(Gtk.Window):
             return False
         if abs(event.x_root - self._press[0]) + abs(event.y_root - self._press[1]) > 4:
             self._press = None
+            self._stop_settling()
             self.begin_move_drag(1, int(event.x_root), int(event.y_root), event.time)
         return True
 
     def _on_grip_press(self, _widget, event):
         if event.button == 1:
+            self._stop_settling()
             self.begin_resize_drag(
                 Gdk.WindowEdge.SOUTH_EAST,
                 event.button,
@@ -279,7 +292,31 @@ class NoteWindow(Gtk.Window):
             )
         return True
 
+    def _settle(self, delay):
+        """Не сохранять геометрию delay мс, затем вернуть сохранённую (как «свернуть-развернуть»)."""
+        if self._settle_source is not None:
+            GLib.source_remove(self._settle_source)
+        self._settling = True
+        self._settle_source = GLib.timeout_add(delay, self._end_settle)
+
+    def _stop_settling(self):
+        """Пользователь сам двигает или тянет окно: его геометрию сохраняем сразу."""
+        if self._settle_source is not None:
+            GLib.source_remove(self._settle_source)
+            self._settle_source = None
+        self._settling = False
+
+    def _end_settle(self):
+        self._settle_source = None
+        self._settling = False
+        if not self._destroyed and self.get_visible():
+            self.move(self.note.x, self.note.y)
+            self._apply_collapsed()
+        return False
+
     def _on_configure(self, _widget, _event):
+        if self._settling:
+            return False
         x, y = self.get_position()
         width, height = self.get_size()
         self.note.x, self.note.y = x, y
@@ -298,6 +335,10 @@ class NoteWindow(Gtk.Window):
 
     def _on_destroy(self, _widget):
         self._destroyed = True
+        self._stop_settling()
+        screen = self.get_screen()
+        for handler in self._screen_handlers:
+            screen.disconnect(handler)
         # Отложенную запись отменяем: заметка уже могла уйти в корзину.
         if self._save_source is not None:
             GLib.source_remove(self._save_source)
