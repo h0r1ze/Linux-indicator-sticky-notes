@@ -55,6 +55,14 @@ window.sticky { background-color: rgba(0,0,0,0); }
 .note .placeholder { font-style: italic; }
 .note .bar label.title { font-size: 11px; font-weight: bold; margin: 0 4px; }
 .note .grip { font-size: 12px; }
+.note .footer { padding: 2px 4px 2px 8px; opacity: 0.55; transition: opacity 150ms ease-in-out; }
+.note .footer:hover { opacity: 1; }
+.note .footer button {
+    min-width: 24px; min-height: 22px; padding: 0 2px;
+    border: none; border-radius: 6px; box-shadow: none; background: none;
+    font-size: 12px;
+}
+.note .footer separator { margin: 4px 0; }
 
 .swatch {
     min-width: 24px; min-height: 24px; padding: 0; border-radius: 12px;
@@ -96,6 +104,10 @@ def note_css(cls, body, bar):
 .note.{cls} .placeholder {{ color: {_rgba(text, 0.45)}; }}
 .note.{cls} .bar label.title {{ color: {_rgba(text, 0.80)}; }}
 .note.{cls} .grip {{ color: {_rgba(text, 0.40)}; }}
+.note.{cls} .footer {{ border-top: 1px solid {_rgba(text, 0.10)}; }}
+.note.{cls} .footer button {{ color: {_rgba(text, 0.70)}; }}
+.note.{cls} .footer button:hover {{ background-color: {_rgba(text, 0.14)}; color: {text}; }}
+.note.{cls} .footer separator {{ background-color: {_rgba(text, 0.15)}; }}
 """
 
 

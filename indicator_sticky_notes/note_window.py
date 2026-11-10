@@ -91,7 +91,7 @@ class NoteWindow(Gtk.Window):
         self.card.pack_start(self._build_bar(), False, False, 0)
         self.body = self._build_body()
         self.card.pack_start(self.body, True, True, 0)
-        self.grip = self._build_grip()
+        self.grip = self._build_footer()
         self.card.pack_start(self.grip, False, False, 0)
         self.add(self.card)
 
@@ -150,10 +150,6 @@ class NoteWindow(Gtk.Window):
         self.pin_button.connect("clicked", lambda _b: self.set_pinned(not self.note.pinned))
         bar.pack_start(self.pin_button, False, False, 0)
 
-        check = self._flat_button("☑", _("Чекбокс в строке (Ctrl+L)"))
-        check.connect("clicked", lambda _b: self.toggle_checklist())
-        bar.pack_start(check, False, False, 0)
-
         self.title_label = Gtk.Label(xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END)
         self.title_label.get_style_context().add_class("title")
         bar.pack_start(self.title_label, True, True, 0)
@@ -162,6 +158,16 @@ class NoteWindow(Gtk.Window):
         delete.get_style_context().add_class("danger")
         delete.connect("clicked", lambda _b: self.app.delete_note(self.note.id))
         bar.pack_end(delete, False, False, 0)
+
+        self.collapse_button = self._flat_button("", _("Свернуть"))
+        # Шеврон рисуем сами: символы ▴/˄ в разных шрифтах разного размера и высоты.
+        self.collapse_button.remove(self.collapse_button.get_child())
+        chevron = Gtk.DrawingArea()
+        chevron.set_size_request(12, 12)
+        chevron.connect("draw", self._draw_chevron)
+        self.collapse_button.add(chevron)
+        self.collapse_button.connect("clicked", lambda _b: self.set_collapsed(not self.note.collapsed))
+        bar.pack_end(self.collapse_button, False, False, 0)
 
         self.menu_button = self._flat_button("⋯", _("Меню заметки"))
         self.menu_button.connect("clicked", lambda _b: self.popup_menu())
@@ -218,10 +224,42 @@ class NoteWindow(Gtk.Window):
         overlay.set_overlay_pass_through(self.placeholder, True)
         return overlay
 
+    def _build_footer(self):
+        """Нижняя панель: форматирование, чекбокс, размер шрифта и уголок растягивания."""
+        footer = Gtk.Box(spacing=0)
+        footer.get_style_context().add_class("footer")
+        # Кнопки не забирают фокус: иначе пропадёт выделение, к которому применяется формат.
+        for name, label, markup in (
+            ("bold", "B", "<b>B</b>"),
+            ("italic", "I", "<i>I</i>"),
+            ("underline", "U", "<u>U</u>"),
+            ("strike", "S", "<s>S</s>"),
+        ):
+            button = self._tool_button(markup, _(FORMAT_LABELS[name]))
+            button.connect("clicked", lambda _b, n=name: self.toggle_format(n))
+            footer.pack_start(button, False, False, 0)
+        footer.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 4)
+        check = self._tool_button("☑", _("Чекбокс в строке (Ctrl+L)"))
+        check.connect("clicked", lambda _b: self.toggle_checklist())
+        footer.pack_start(check, False, False, 0)
+        for markup, tooltip, delta in (("A<sup>−</sup>", _("Мельче (Ctrl+-)"), -1),
+                                       ("A<sup>+</sup>", _("Крупнее (Ctrl++)"), 1)):
+            button = self._tool_button(markup, tooltip)
+            button.connect("clicked", lambda _b, d=delta: self.change_font(d))
+            footer.pack_start(button, False, False, 0)
+        footer.pack_end(self._build_grip(), False, False, 0)
+        return footer
+
+    def _tool_button(self, markup, tooltip):
+        button = self._flat_button("", tooltip)
+        button.get_child().set_markup(markup)
+        button.set_focus_on_click(False)
+        return button
+
     def _build_grip(self):
         grip = Gtk.EventBox()
         grip.set_visible_window(False)
-        grip.set_size_request(-1, 16)
+        grip.set_size_request(22, -1)
         grip.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
             | Gdk.EventMask.ENTER_NOTIFY_MASK
@@ -232,7 +270,7 @@ class NoteWindow(Gtk.Window):
         # окно заметки по входу/выходу: иначе он остался бы на всей заметке.
         grip.connect("enter-notify-event", lambda *_a: self._set_window_cursor("se-resize"))
         grip.connect("leave-notify-event", lambda *_a: self._set_window_cursor(None))
-        label = Gtk.Label(label="◢", halign=Gtk.Align.END, margin_end=6)
+        label = Gtk.Label(label="◢", halign=Gtk.Align.END, valign=Gtk.Align.END, margin_end=6)
         label.get_style_context().add_class("grip")
         grip.add(label)
         return grip
@@ -403,6 +441,25 @@ class NoteWindow(Gtk.Window):
         else:
             self.resize(max(self.note.width, MIN_WIDTH), max(self.note.height, MIN_HEIGHT))
 
+    def _draw_chevron(self, area, cr):
+        """Галочка ˄ (свернуть) или ˅ (развернуть) цветом и толщиной как у ×."""
+        color = self.collapse_button.get_style_context().get_color(
+            self.collapse_button.get_state_flags()
+        )
+        width, height = area.get_allocated_width(), area.get_allocated_height()
+        half, rise = 5, 3
+        cx, cy = width / 2, height / 2
+        tip = -rise if not self.note.collapsed else rise
+        cr.set_source_rgba(color.red, color.green, color.blue, color.alpha)
+        cr.set_line_width(2)
+        cr.set_line_cap(1)  # cairo.LINE_CAP_ROUND
+        cr.set_line_join(1)  # cairo.LINE_JOIN_ROUND
+        cr.move_to(cx - half, cy - tip)
+        cr.line_to(cx, cy + tip)
+        cr.line_to(cx + half, cy - tip)
+        cr.stroke()
+        return False
+
     def _update_collapsed_class(self):
         """У свёрнутой заметки скруглены все углы шапки, а не только верхние."""
         ctx = self.card.get_style_context()
@@ -410,6 +467,8 @@ class NoteWindow(Gtk.Window):
             ctx.add_class("collapsed")
         else:
             ctx.remove_class("collapsed")
+        self.collapse_button.queue_draw()
+        self.collapse_button.set_tooltip_text(_("Развернуть") if self.note.collapsed else _("Свернуть"))
 
     # --- заголовок, прозрачность, размер шрифта, группа ---
 

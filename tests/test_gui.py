@@ -516,6 +516,36 @@ class GuiStage2Test(GuiTest):
         self.assertFalse(window._settling)
         self.assertIsNone(window._settle_source)
 
+    def test_footer_buttons_format_selection(self):
+        (window,) = self.start({"text": "hello world"})
+        buffer = window.view.get_buffer()
+        buffer.select_range(buffer.get_start_iter(), buffer.get_iter_at_offset(5))
+        bold = window.grip.get_children()[0]
+        self.assertFalse(bold.get_focus_on_click())  # выделение не должно пропасть
+        bold.clicked()
+        self.assertIn([0, 5, "bold"], window.collect_formats())
+
+    def test_footer_font_buttons(self):
+        (window,) = self.start({"text": "a"})
+        size = window.effective_font_size()
+        buttons = [b for b in window.grip.get_children() if isinstance(b, Gtk.Button)]
+        buttons[-1].clicked()  # A+
+        self.assertEqual(window.effective_font_size(), size + 1)
+        buttons[-2].clicked()  # A−
+        self.assertEqual(window.effective_font_size(), size)
+
+    def test_collapse_button(self):
+        (window,) = self.start({"text": "a"})
+        window.collapse_button.clicked()
+        pump()
+        self.assertTrue(window.note.collapsed)
+        self.assertEqual(window.collapse_button.get_tooltip_text(), "Развернуть")
+        self.assertFalse(window.grip.get_visible())
+        window.collapse_button.clicked()
+        pump()
+        self.assertFalse(window.note.collapsed)
+        self.assertEqual(window.collapse_button.get_tooltip_text(), "Свернуть")
+
     def test_collapsed_state_persists(self):
         (window,) = self.start({"text": "a"})
         window.set_collapsed(True)

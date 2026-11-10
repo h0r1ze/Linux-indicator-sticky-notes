@@ -82,10 +82,11 @@ The app restarts by itself and your notes stay where they were.
 
 ### Write the way you like
 
+- **Bottom toolbar** with B I U S, ☑ and A− A+ buttons (dimmed, brighter on hover)
 - **Formatting:** bold `Ctrl+B`, italic `Ctrl+I`, underline `Ctrl+U`, strikethrough `Ctrl+Shift+X`. Shortcuts work in any keyboard layout
 - **Checkboxes:** the ☑ button or `Ctrl+L`, typing `[ ] ` becomes ☐, Enter continues the list, a click on the box ticks it and finished items are struck through
 - **Word-style dash lists:** type `-` and `Tab` (autoconversion of `- ` plus space can be switched on in the settings; by default a hyphen stays a hyphen). Enter continues the list (on an empty item it goes up a level or ends the list), `Tab` and `Shift+Tab` indent and outdent (up to three levels), Backspace right after the marker removes it. Wrapped lines align under the text
-- **Title**, **keep on top** (📌), **collapse** with a double click on the header
+- **Title**, **keep on top** (📌), **collapse** with the ˄ button or a double click on the header
 - Font size: a **slider right in the menu** `⋯` → "Font size" (the mark on the track is the default size), plus `Ctrl++`, `Ctrl+-`, `Ctrl+0` or `Ctrl` + mouse wheel
 
 <div align="center">
