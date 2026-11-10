@@ -162,18 +162,75 @@ class StickyApp(Gtk.Application):
         child, parent = self.windows.get(note_id), self.windows.get(parent_id)
         if child is None or parent is None or note_id == parent_id:
             return False
+        if child.note.solo or parent.note.solo:
+            return False
         members = self.stack_members(child)
         below = members[members.index(child):]  # сама заметка и всё, что висит под ней
         if self.dock_child(parent_id) is not None or parent in below:
             return False
         child.note.dock = parent_id
-        child.resize(parent.get_size()[0], child.get_size()[1])
+        self.sync_stack_width(parent, parent.get_size()[0], parent.get_position()[0])
         parent.layout_stack()
-        # Оконный менеджер может не принять сдвиг сразу после перетаскивания: повторим.
-        GLib.timeout_add(200, lambda: parent.layout_stack() if not parent._destroyed else None)
+
+        # Оконный менеджер может не принять сдвиг и ширину сразу после перетаскивания: повторим.
+        def again():
+            if not parent._destroyed:
+                self.sync_stack_width(parent, parent.get_size()[0], parent.get_position()[0])
+                parent.layout_stack()
+            return False
+        GLib.timeout_add(200, again)
         self.refresh_stacks()
+        for member in self.stack_members(parent):
+            member.flash()
         self.store.save()
         return True
+
+    def set_solo(self, note_id, solo):
+        """Отдельная заметка не скрепляется; если она была в связке — выходит из неё,
+        а остальные заметки связки остаются вместе."""
+        window = self.windows.get(note_id)
+        if window is None:
+            return
+        window.note.solo = bool(solo)
+        if solo:
+            self._leave_stack(window)
+        self.refresh_stacks()
+        self.store.touch(window.note)
+        self.store.save()
+
+    def _leave_stack(self, window):
+        """Вынуть заметку из связки: нижняя цепляется к верхней, связка не рвётся."""
+        note = window.note
+        child = self.dock_child(note.id)
+        parent = self.windows.get(note.dock)
+        if child is not None:
+            child.note.dock = note.dock
+        note.dock = ""
+        if parent is not None:
+            parent.layout_stack()
+        elif child is not None:
+            child.layout_stack()
+        if child is not None or parent is not None:
+            x, y = window.get_position()
+            window.move(x + 24, y + 24)  # чуть в сторону, чтобы было видно, что она отдельно
+
+    def sync_stack_width(self, window, width, x):
+        """У всей связки одна ширина и левый край (тянули за левый край — сдвинулся и x);
+        высоту каждая заметка задаёт сама."""
+        for member in self.stack_members(window):
+            if member is window:
+                continue
+            if member.get_size()[0] != width:
+                member._last_width = width  # не раздавать ширину ещё раз от этой заметки
+                member.resize(width, member.get_size()[1])
+            mx, my = member.get_position()
+            if mx != x:
+                member.move(x, my)
+
+    def show_snap_target(self, target):
+        """Подсветить заметку, к которой прилипнет перетаскиваемая."""
+        for window in self.windows.values():
+            window.set_card_class("snap-target", window is target)
 
     def unlink_stack(self, note_id):
         """Разъединить всю связку; заметки чуть раздвигаются, чтобы было видно."""

@@ -1,6 +1,7 @@
 """Окно одной заметки."""
 import re
 
+import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -20,6 +21,7 @@ SAVE_DELAY_MS = 500
 SETTLE_MS = 30000
 SCREEN_SETTLE_MS = 2000  # то же после смены разрешения или мониторов
 SNAP_DISTANCE = 24  # на столько пикселей шапку можно поднести к низу другой заметки, чтобы прилипла
+EDGE_OUT, EDGE_IN = 10, 5  # зона захвата края: пикселей снаружи листа (в поле тени) и внутри
 SNAP_DELAY_MS = 350  # перетаскивание считаем законченным, если окно столько не двигалось
 MIN_WIDTH, MIN_HEIGHT = 240, 140
 FONT_MIN, FONT_MAX = 8, 40
@@ -60,6 +62,8 @@ class NoteWindow(Gtk.Window):
         self._settle_source = None
         self._settling = False
         self._drag_source = None  # ждём конца перетаскивания, чтобы проверить «магнит»
+        self._last_width = None  # ширину, изменённую пользователем, раздаём всей связке
+        self._flash_source = None
         self._font_provider = Gtk.CssProvider()
         self._placeholder_provider = Gtk.CssProvider()
 
@@ -114,6 +118,12 @@ class NoteWindow(Gtk.Window):
         GLib.idle_add(self._refresh_list_style)
         self.move(note.x, note.y)
         self.connect("configure-event", self._on_configure)
+        self.add_events(Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK)
+        self.connect("motion-notify-event", self._on_edge_motion)
+        self.connect("button-press-event", self._on_edge_press)
+        self.connect("leave-notify-event", lambda *_a: self._show_edge_cursor(None))
+        self._edge_cursor = None
+        self.card.connect("size-allocate", lambda *_a: self.update_input_shape())
         self.connect("key-press-event", self._on_window_key)
         self.connect("delete-event", self._on_close)
         self.connect("map", lambda _w: self._apply_collapsed())
@@ -271,6 +281,15 @@ class NoteWindow(Gtk.Window):
         picture.connect("clicked", lambda _b: self.choose_image())
         footer.pack_start(picture, False, False, 0)
         footer.pack_end(self._build_grip(), False, False, 0)
+        self.solo_button = self._tool_button("", "")
+        self.solo_button.remove(self.solo_button.get_child())
+        magnet = Gtk.DrawingArea()
+        magnet.set_size_request(14, 14)
+        magnet.connect("draw", self._draw_magnet)
+        self.solo_button.add(magnet)
+        self.solo_button.connect("clicked", lambda _b: self.app.set_solo(self.note.id, not self.note.solo))
+        footer.pack_end(self.solo_button, False, False, 0)
+        self._update_solo_button()
         return footer
 
     def _tool_button(self, markup, tooltip):
@@ -302,6 +321,72 @@ class NoteWindow(Gtk.Window):
         if name not in self._cursors:
             self._cursors[name] = Gdk.Cursor.new_from_name(self.get_display(), name)
         return self._cursors[name]
+
+    # --- растягивание за края (и у свёрнутой заметки — по ширине) ---
+
+    _EDGE_CURSORS = {
+        Gdk.WindowEdge.WEST: "w-resize", Gdk.WindowEdge.EAST: "e-resize",
+        Gdk.WindowEdge.SOUTH: "s-resize", Gdk.WindowEdge.SOUTH_WEST: "sw-resize",
+        Gdk.WindowEdge.SOUTH_EAST: "se-resize",
+    }
+
+    def edge_at(self, x_root, y_root):
+        """Край листа под точкой экрана: Gdk.WindowEdge или None."""
+        gdk_window = self.get_window()
+        if gdk_window is None:
+            return None
+        ox, oy = gdk_window.get_origin()[1:]
+        x, y = x_root - ox, y_root - oy
+        box = self.card.get_allocation()
+        left, right = box.x, box.x + box.width
+        top, bottom = box.y, box.y + box.height
+        if not (top <= y <= bottom + EDGE_OUT) or not (left - EDGE_OUT <= x <= right + EDGE_OUT):
+            return None
+        west = x <= left + EDGE_IN
+        east = x >= right - EDGE_IN
+        south = not self.note.collapsed and y >= bottom - EDGE_IN
+        if south:
+            return Gdk.WindowEdge.SOUTH_WEST if west else Gdk.WindowEdge.SOUTH_EAST if east \
+                else Gdk.WindowEdge.SOUTH
+        if y > bottom:
+            return None
+        return Gdk.WindowEdge.WEST if west else Gdk.WindowEdge.EAST if east else None
+
+    def update_input_shape(self):
+        """Прозрачное поле под тень не ловит мышь (иначе соседняя заметка связки закрывает
+        уголок растягивания), кроме узкой зоны захвата краёв слева, справа и снизу."""
+        gdk_window = self.get_window()
+        if gdk_window is None or not self._rounded:
+            return
+        box = self.card.get_allocation()
+        below = EDGE_OUT
+        if self.note.collapsed or self.card.get_style_context().has_class("stack-above"):
+            below = 0  # снизу вплотную висит другая заметка (или это одна шапка)
+        rect = cairo.RectangleInt(box.x - EDGE_OUT, box.y,
+                                  box.width + 2 * EDGE_OUT, box.height + below)
+        gdk_window.input_shape_combine_region(cairo.Region(rect), 0, 0)
+
+    def _show_edge_cursor(self, edge):
+        name = self._EDGE_CURSORS.get(edge)
+        if name != self._edge_cursor:
+            self._edge_cursor = name
+            self._set_window_cursor(name)
+
+    def _on_edge_motion(self, _widget, event):
+        if not event.state & Gdk.ModifierType.BUTTON1_MASK:
+            self._show_edge_cursor(self.edge_at(event.x_root, event.y_root))
+        return False
+
+    def _on_edge_press(self, _widget, event):
+        if event.button != 1 or event.type != Gdk.EventType.BUTTON_PRESS:
+            return False
+        edge = self.edge_at(event.x_root, event.y_root)
+        if edge is None:
+            return False
+        self._press = None  # это не перетаскивание за шапку
+        self._stop_settling()
+        self.begin_resize_drag(edge, event.button, int(event.x_root), int(event.y_root), event.time)
+        return True
 
     def _set_window_cursor(self, name):
         gdk_window = self.get_window()
@@ -381,8 +466,13 @@ class NoteWindow(Gtk.Window):
 
     def _on_configure(self, _widget, _event):
         self.layout_stack()
+        width = self.get_size()[0]
+        if self._last_width is not None and width != self._last_width:
+            self.app.sync_stack_width(self, width, self.get_position()[0])
+        self._last_width = width
         if self._drag_source is not None:
             self._start_drag_watch()
+            self.app.show_snap_target(self.snap_target())
         if self._settling:
             return False
         x, y = self.get_position()
@@ -404,9 +494,10 @@ class NoteWindow(Gtk.Window):
     def _on_destroy(self, _widget):
         self._destroyed = True
         self._stop_settling()
-        if self._drag_source is not None:
-            GLib.source_remove(self._drag_source)
-            self._drag_source = None
+        for source in (self._drag_source, self._flash_source):
+            if source is not None:
+                GLib.source_remove(source)
+        self._drag_source = self._flash_source = None
         screen = self.get_screen()
         for handler in self._screen_handlers:
             screen.disconnect(handler)
@@ -495,29 +586,95 @@ class NoteWindow(Gtk.Window):
 
     def _end_drag(self):
         self._drag_source = None
+        self.app.show_snap_target(None)
         if not self._destroyed:
             self.try_snap()
         return False
 
     def try_snap(self):
         """«Магнит»: шапка рядом с низом другой заметки — прикрепиться к ней. True, если прилипла."""
-        if self.note.dock or not self.get_visible():
-            return False
+        target = self.snap_target()
+        return self.app.dock(self.note.id, target.note.id) if target is not None else False
+
+    def snap_target(self):
+        """Заметка, к низу которой прилипнет эта, если отпустить её сейчас."""
+        if self.note.dock or self.note.solo or not self.get_visible():
+            return None
         margin = theme.SHADOW_MARGIN if self._rounded else 0
         x, y = self.get_position()
         own = self.app.stack_members(self)
         for other in list(self.app.windows.values()):
-            if other in own or not other.get_visible() or self.app.dock_child(other.note.id):
+            if other in own or other.note.solo or not other.get_visible() \
+                    or self.app.dock_child(other.note.id):
                 continue
             ox, oy = other.get_position()
             bottom = oy + other.get_size()[1] - 2 * margin
             if abs(y - bottom) <= SNAP_DISTANCE and abs(x - ox) <= SNAP_DISTANCE * 3:
-                return self.app.dock(self.note.id, other.note.id)
+                return other
+        return None
+
+    def _update_solo_button(self):
+        ctx = self.solo_button.get_style_context()
+        if self.note.solo:
+            ctx.add_class("active")
+            self.solo_button.set_tooltip_text(_("Отдельная заметка: нажмите, чтобы её снова можно было скреплять"))
+        else:
+            ctx.remove_class("active")
+            self.solo_button.set_tooltip_text(_("Сделать отдельной: не скреплять с другими заметками"))
+        self.solo_button.queue_draw()
+
+    def _draw_magnet(self, area, cr):
+        """Подкова-магнит; у отдельной заметки перечёркнута."""
+        color = self.solo_button.get_style_context().get_color(self.solo_button.get_state_flags())
+        width, height = area.get_allocated_width(), area.get_allocated_height()
+        cx, cy = width / 2, height / 2
+        cr.set_source_rgba(color.red, color.green, color.blue, color.alpha)
+        cr.set_line_width(2)
+        cr.set_line_cap(1)  # cairo.LINE_CAP_ROUND
+        cr.move_to(cx - 4.5, cy - 5)
+        cr.line_to(cx - 4.5, cy)
+        cr.arc_negative(cx, cy, 4.5, 3.1416, 0)
+        cr.line_to(cx + 4.5, cy - 5)
+        cr.stroke()
+        if self.note.solo:
+            cr.move_to(cx - 6, cy + 6)
+            cr.line_to(cx + 6, cy - 6)
+            cr.stroke()
         return False
 
     def update_unlink_button(self):
-        in_stack = self.note.dock in self.app.windows or self.app.dock_child(self.note.id) is not None
-        self.unlink_button.set_visible(in_stack)
+        """Кнопка-цепочка и вид связки: стыкующиеся углы прямые, листы сливаются в один."""
+        above = self.note.dock in self.app.windows
+        below = self.app.dock_child(self.note.id) is not None
+        self.unlink_button.set_visible(above or below)
+        self._update_solo_button()
+        ctx = self.card.get_style_context()
+        for name, on in (("stack-above", below), ("stack-below", above)):
+            if on:
+                ctx.add_class(name)
+            else:
+                ctx.remove_class(name)
+        self.update_input_shape()
+
+    def set_card_class(self, name, on):
+        ctx = self.card.get_style_context()
+        if on:
+            ctx.add_class(name)
+        else:
+            ctx.remove_class(name)
+
+    def flash(self):
+        """Короткая подсветка: заметка только что вошла в связку."""
+        self.set_card_class("snapped", True)
+        if self._flash_source is not None:
+            GLib.source_remove(self._flash_source)
+
+        def done():
+            self._flash_source = None
+            if not self._destroyed:
+                self.set_card_class("snapped", False)
+            return False
+        self._flash_source = GLib.timeout_add(700, done)
 
     def _draw_links(self, area, cr):
         """Два звена цепочки цветом кнопок шапки."""
@@ -777,6 +934,8 @@ class NoteWindow(Gtk.Window):
         item(menu, _("Заголовок…"), self.edit_title)
         item(menu, _("Развернуть") if self.note.collapsed else _("Свернуть"),
              lambda: self.set_collapsed(not self.note.collapsed))
+        item(menu, _("Отдельная (не скреплять с другими)"),
+             lambda: self.app.set_solo(self.note.id, not self.note.solo), check=self.note.solo)
         menu.append(Gtk.SeparatorMenuItem())
 
         formats = submenu(_("Формат"))

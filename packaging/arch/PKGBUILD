@@ -1,12 +1,12 @@
 # Maintainer: h0r1ze <87946256+h0r1ze@users.noreply.github.com>
 pkgname=indicator-sticky-notes
-pkgver=0.4.0
+pkgver=0.4.1
 pkgrel=1
 pkgdesc='Sticky notes for the Linux desktop (GTK3): checklists, groups, trash, sync, tray icon'
 arch=('any')
 url='https://github.com/h0r1ze/Linux-indicator-sticky-notes'
 license=('MIT')
-depends=('python' 'python-gobject' 'gtk3' 'libx11')
+depends=('python' 'python-gobject' 'python-cairo' 'gtk3' 'libx11')
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 conflicts=('indicat-sticky-notes')
 replaces=('indicat-sticky-notes')

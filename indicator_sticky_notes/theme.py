@@ -25,6 +25,7 @@ PALETTE_COLUMNS = 8
 
 SHADOW_MARGIN = 14  # место вокруг листа под тень
 
+# stack-above/stack-below: стыкующиеся углы связки прямые; snap-target и snapped — подсветка «магнита».
 _STATIC_CSS = """
 window.sticky { background-color: rgba(0,0,0,0); }
 
@@ -37,6 +38,17 @@ window.sticky { background-color: rgba(0,0,0,0); }
 .note .bar { border-radius: 12px 12px 0 0; padding: 4px 6px; }
 .note.collapsed .bar { border-radius: 12px; }
 .note.flat .bar, .note.flat.collapsed .bar { border-radius: 0; }
+.note.stack-above { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.note.stack-above.collapsed .bar { border-radius: 12px 12px 0 0; }
+.note.stack-below { border-top-left-radius: 0; border-top-right-radius: 0; }
+.note.stack-below .bar { border-radius: 0; box-shadow: inset 0 1px rgba(0,0,0,0.12); }
+.note.stack-below.collapsed .bar { border-radius: 0 0 12px 12px; }
+.note.stack-below.stack-above.collapsed .bar { border-radius: 0; }
+.note.flat.stack-below .bar { border-radius: 0; }
+.note.snap-target, .note.snapped {
+    box-shadow: 0 0 0 3px rgba(53,132,228,0.85), 0 2px 10px rgba(0,0,0,0.25);
+}
+.note { transition: box-shadow 200ms ease-out; }
 .note .bar button {
     min-width: 26px; min-height: 26px; padding: 0;
     border: none; border-radius: 13px; box-shadow: none; background: none;
@@ -107,6 +119,7 @@ def note_css(cls, body, bar):
 .note.{cls} .footer {{ border-top: 1px solid {_rgba(text, 0.10)}; }}
 .note.{cls} .footer button {{ color: {_rgba(text, 0.70)}; }}
 .note.{cls} .footer button:hover {{ background-color: {_rgba(text, 0.14)}; color: {text}; }}
+.note.{cls} .footer button.active {{ background-color: {_rgba(text, 0.16)}; color: {text}; }}
 .note.{cls} .footer separator {{ background-color: {_rgba(text, 0.15)}; }}
 """
 

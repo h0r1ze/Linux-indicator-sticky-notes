@@ -70,19 +70,19 @@ install_deps() {
     say "Installing system packages (GTK 3, PyGObject)..." "Ставлю системные пакеты (GTK 3, PyGObject)..."
     if command -v apt-get >/dev/null 2>&1; then
         as_root apt-get update
-        as_root apt-get install -y python3 python3-gi gir1.2-gtk-3.0
+        as_root apt-get install -y python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0
     elif command -v dnf >/dev/null 2>&1; then
         as_root dnf install -y python3 python3-gobject gobject-introspection gtk3 libX11
     elif command -v yum >/dev/null 2>&1; then
         as_root yum install -y python3 python3-gobject gobject-introspection gtk3 libX11
     elif command -v pacman >/dev/null 2>&1; then
-        as_root pacman -S --needed --noconfirm python python-gobject gtk3 libx11
+        as_root pacman -S --needed --noconfirm python python-gobject python-cairo gtk3 libx11
     elif command -v zypper >/dev/null 2>&1; then
-        as_root zypper --non-interactive install python3 python3-gobject python3-gobject-Gdk typelib-1_0-Gtk-3_0 libX11-6
+        as_root zypper --non-interactive install python3 python3-gobject python3-gobject-Gdk python3-gobject-cairo typelib-1_0-Gtk-3_0 libX11-6
     elif command -v apk >/dev/null 2>&1; then
-        as_root apk add python3 py3-gobject3 gtk+3.0
+        as_root apk add python3 py3-gobject3 py3-cairo gtk+3.0
     elif command -v xbps-install >/dev/null 2>&1; then
-        as_root xbps-install -Sy python3 python3-gobject gtk+3
+        as_root xbps-install -Sy python3 python3-gobject python3-cairo gtk+3
     else
         die "no known package manager. Install Python 3.9+, PyGObject and GTK 3 yourself, then run with --no-deps" \
             "не найден известный менеджер пакетов. Поставьте Python 3.9+, PyGObject и GTK 3 сами и запустите с --no-deps"

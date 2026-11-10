@@ -44,6 +44,7 @@ class Note:
     formats: list = field(default_factory=list)  # [[начало, конец, "bold"], ...]
     images: list = field(default_factory=list)  # [[смещение, "имя файла"], ...] в папке images/
     dock: str = ""  # id заметки, к низу которой прикреплена эта (связка)
+    solo: bool = False  # отдельная: не скрепляется с другими заметками
     deleted_at: float = 0.0  # когда отправлена в корзину; 0 — не в корзине
     purged: bool = False  # удалена из корзины; остаётся «надгробием» для синхронизации
 

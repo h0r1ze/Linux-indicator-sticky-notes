@@ -14,7 +14,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 \
+          sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 xvfb xauth libxtst6 \
             fonts-noto-core desktop-file-utils
       - name: Validate desktop file
         run: desktop-file-validate data/indicator-sticky-notes.desktop
@@ -37,21 +37,21 @@ jobs:
             experimental: false
             install: >-
               apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y
-              git python3 python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
+              git python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
               desktop-file-utils ca-certificates
           - name: Ubuntu 22.04
             image: ubuntu:22.04
             experimental: false
             install: >-
               apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y
-              git python3 python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
+              git python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
               desktop-file-utils ca-certificates
           - name: Ubuntu 24.04
             image: ubuntu:24.04
             experimental: false
             install: >-
               apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y
-              git python3 python3-gi gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
+              git python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 xvfb xauth libxtst6 fonts-noto-core
               desktop-file-utils ca-certificates
           - name: Fedora
             image: fedora:latest
@@ -69,13 +69,13 @@ jobs:
             image: archlinux:latest
             experimental: false
             install: >-
-              pacman -Syu --noconfirm git python python-gobject gtk3 libx11 xorg-server-xvfb
+              pacman -Syu --noconfirm git python python-gobject python-cairo gtk3 libx11 xorg-server-xvfb
               xorg-xauth libxtst noto-fonts desktop-file-utils
           - name: openSUSE Tumbleweed
             image: opensuse/tumbleweed:latest
             experimental: true
             install: >-
-              zypper --non-interactive install git python3 python3-gobject python3-gobject-Gdk
+              zypper --non-interactive install git python3 python3-gobject python3-gobject-Gdk python3-gobject-cairo
               typelib-1_0-Gtk-3_0 libX11-6 xorg-x11-server-Xvfb xvfb-run xauth libXtst6 noto-sans-fonts
               desktop-file-utils
     steps:
@@ -209,7 +209,7 @@ jobs:
       - name: Install build dependencies
         run: |
           pacman -Syu --noconfirm base-devel git sudo python python-build python-installer \
-            python-setuptools python-wheel python-gobject gtk3 libx11 xorg-server-xvfb xorg-xauth
+            python-setuptools python-wheel python-gobject python-cairo gtk3 libx11 xorg-server-xvfb xorg-xauth
       - uses: actions/checkout@v4
       - name: Build the package as an unprivileged user
         run: |

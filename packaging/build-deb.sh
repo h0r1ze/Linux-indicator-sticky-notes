@@ -33,7 +33,7 @@ Version: ${version}
 Section: utils
 Priority: optional
 Architecture: all
-Depends: python3 (>= 3.9), python3-gi, gir1.2-gtk-3.0
+Depends: python3 (>= 3.9), python3-gi, python3-gi-cairo, gir1.2-gtk-3.0
 Replaces: indicat-sticky-notes (<< 0.2.3)
 Conflicts: indicat-sticky-notes (<< 0.2.3)
 Maintainer: h0r1ze <87946256+h0r1ze@users.noreply.github.com>

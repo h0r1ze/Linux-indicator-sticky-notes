@@ -573,6 +573,101 @@ class GuiStage2Test(GuiTest):
         pump(0.3)
         self.assert_under(bottom, top)
 
+    def test_stack_shares_width_and_looks_joined(self):
+        top, bottom = self.start({"text": "a", "width": 280}, {"text": "b", "width": 400, "height": 300})
+        pump(0.2)
+        self.app.dock(bottom.note.id, top.note.id)
+        pump(0.4)
+        self.assertEqual(bottom.get_size()[0], top.get_size()[0])
+        self.assertEqual(bottom.get_size()[1], 300)  # высота своя
+        self.assertTrue(top.card.get_style_context().has_class("stack-above"))
+        self.assertTrue(bottom.card.get_style_context().has_class("stack-below"))
+        self.assertTrue(bottom.card.get_style_context().has_class("snapped"))  # вспышка
+        pump(0.9)
+        self.assertFalse(bottom.card.get_style_context().has_class("snapped"))
+        bottom.resize(360, 300)  # растянули нижнюю — верхняя тоже
+        pump(0.4)
+        self.assertEqual(top.get_size()[0], 360)
+        self.app.unlink_stack(top.note.id)
+        self.assertFalse(top.card.get_style_context().has_class("stack-above"))
+        self.assertFalse(bottom.card.get_style_context().has_class("stack-below"))
+
+    def test_snap_target_is_highlighted(self):
+        top, other = self.start({"text": "a", "x": 100, "y": 100}, {"text": "b", "x": 600, "y": 100})
+        pump(0.2)
+        x, y = top.get_position()
+        other.move(x, y + top.get_size()[1] - 2 * self.margin(top) + 5)
+        pump(0.3)
+        self.assertIs(other.snap_target(), top)
+        self.app.show_snap_target(other.snap_target())
+        self.assertTrue(top.card.get_style_context().has_class("snap-target"))
+        self.app.show_snap_target(None)
+        self.assertFalse(top.card.get_style_context().has_class("snap-target"))
+
+    def edge_point(self, window, where):
+        """Точка экрана у края листа: west, east, south или above (поле тени над шапкой)."""
+        ox, oy = window.get_window().get_origin()[1:]
+        box = window.card.get_allocation()
+        mid_y = oy + box.y + box.height // 2
+        return {
+            "west": (ox + box.x + 1, mid_y),
+            "east": (ox + box.x + box.width - 2, mid_y),
+            "south": (ox + box.x + box.width // 2, oy + box.y + box.height - 1),
+            "middle": (ox + box.x + box.width // 2, mid_y),
+        }[where]
+
+    def test_edges_resize_even_when_collapsed(self):
+        (window,) = self.start({"text": "a"})
+        pump(0.2)
+        self.assertEqual(window.edge_at(*self.edge_point(window, "west")), Gdk.WindowEdge.WEST)
+        self.assertEqual(window.edge_at(*self.edge_point(window, "east")), Gdk.WindowEdge.EAST)
+        self.assertEqual(window.edge_at(*self.edge_point(window, "south")), Gdk.WindowEdge.SOUTH)
+        self.assertIsNone(window.edge_at(*self.edge_point(window, "middle")))
+        window.set_collapsed(True)
+        pump(0.3)
+        self.assertEqual(window.edge_at(*self.edge_point(window, "east")), Gdk.WindowEdge.EAST)
+        self.assertEqual(window.edge_at(*self.edge_point(window, "west")), Gdk.WindowEdge.WEST)
+        self.assertNotIn(window.edge_at(*self.edge_point(window, "south")),
+                         (Gdk.WindowEdge.SOUTH, Gdk.WindowEdge.SOUTH_EAST, Gdk.WindowEdge.SOUTH_WEST))
+        resized = []
+        window.begin_resize_drag = lambda edge, *_a: resized.append(edge)
+        raw = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)  # держим ссылку на событие
+        event = raw.button
+        event.button = 1
+        event.x_root, event.y_root = self.edge_point(window, "east")
+        self.assertTrue(window._on_edge_press(window, event))
+        self.assertEqual(resized, [Gdk.WindowEdge.EAST])
+
+    def test_solo_note_never_joins_and_leaves_its_stack(self):
+        a, b, c = self.start({"text": "a"}, {"text": "b"}, {"text": "c"})
+        pump(0.2)
+        self.app.dock(b.note.id, a.note.id)
+        self.app.dock(c.note.id, b.note.id)
+        b.solo_button.clicked()  # средняя становится отдельной
+        pump(0.3)
+        self.assertTrue(b.note.solo)
+        self.assertEqual(b.note.dock, "")
+        self.assertEqual(c.note.dock, a.note.id)  # остальные остались вместе
+        self.assert_under(c, a)
+        self.assertTrue(b.solo_button.get_style_context().has_class("active"))
+        self.assertFalse(self.app.dock(b.note.id, c.note.id))
+        x, y = c.get_position()
+        b.move(x, y + c.get_size()[1] - 2 * self.margin(c) + 4)
+        pump(0.3)
+        self.assertIsNone(b.snap_target())  # отдельная не прилипает
+        self.app.unlink_stack(a.note.id)
+        pump(0.2)
+        x, y = b.get_position()
+        a.move(x, y + b.get_size()[1] - 2 * self.margin(b) + 4)
+        pump(0.3)
+        self.assertIsNot(a.snap_target(), b)  # и к ней не прилипают
+        reloaded = NoteStore(self.store.path)
+        reloaded.load()
+        self.assertTrue(reloaded.get(b.note.id).solo)
+        b.solo_button.clicked()
+        self.assertFalse(b.note.solo)
+        self.assertTrue(self.app.dock(b.note.id, c.note.id))
+
     def test_magnet_snaps_near_bottom_only(self):
         top, other = self.start({"text": "a", "x": 100, "y": 100}, {"text": "b", "x": 600, "y": 100})
         pump(0.2)

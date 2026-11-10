@@ -204,7 +204,7 @@ def scenes():
                                                               "— buy a present\n— pick up the parcel"),
              color="#c9f0e1", hidden=True, dock="a" * 32),
         dict(title=T("Отпуск", "Holiday"), text=T("Вот это место:\n", "This is the place:\n"),
-             color="yellow", hidden=True),
+             color="yellow", hidden=True, solo=True),
     ])
     picture = _illustration(400, 240)
     name = images.save_pixbuf(picture, images.images_dir(app3.store.path))

@@ -86,6 +86,7 @@ The app restarts by itself and your notes stay where they were.
 - **Formatting:** bold `Ctrl+B`, italic `Ctrl+I`, underline `Ctrl+U`, strikethrough `Ctrl+Shift+X`. Shortcuts work in any keyboard layout
 - **Checkboxes:** the ☑ button or `Ctrl+L`, typing `[ ] ` becomes ☐, Enter continues the list, a click on the box ticks it and finished items are struck through
 - **Word-style dash lists:** type `-` and `Tab` (autoconversion of `- ` plus space can be switched on in the settings; by default a hyphen stays a hyphen). Enter continues the list (on an empty item it goes up a level or ends the list), `Tab` and `Shift+Tab` indent and outdent (up to three levels), Backspace right after the marker removes it. Wrapped lines align under the text
+- **Resize** by the left, right and bottom edges and the ◢ corner; a collapsed note can be resized in width by its side edges
 - **Title**, **keep on top** (📌), **collapse** with the ˄ button or a double click on the header
 - Font size: a **slider right in the menu** `⋯` → "Font size" (the mark on the track is the default size), plus `Ctrl++`, `Ctrl+-`, `Ctrl+0` or `Ctrl` + mouse wheel
 
@@ -99,7 +100,7 @@ The app restarts by itself and your notes stay where they were.
 
 <img src="docs/images/en/stack.png" alt="Two notes in a stack and a note with a picture" width="100%">
 
-- **Stacks:** bring a note's header to the bottom of another note and it snaps right under it, taking the same width. Drag a stack by any header and it moves as a whole; a collapsed top note pulls the ones below up. The chain button in the header splits the stack
+- **Stacks:** bring a note's header to the bottom of another note: that note gets a highlight frame, and on release the note snaps right under it and the stack flashes briefly. Joined notes look like one sheet with a seam; the stack shares one width while each note keeps its own height. Drag a stack by any header and it moves as a whole; a collapsed top note pulls the ones below up. The chain button in the header splits the stack, and the magnet at the bottom right makes a note **standalone**: it leaves the stack and never joins one again until you switch it back
 - **Pictures:** `Ctrl+V` pastes a screenshot or a copied file; you can also drop a file onto a note or press 🖼 at the bottom. The note shows a thumbnail, a double click opens the picture in a separate window. Files are copied to the `images` folder next to the notes and sync with them; Markdown export turns them into links
 
 ### Keep things in order
@@ -160,7 +161,7 @@ The package is `noarch` (pure Python, any CPU), but it is tied to the Python ver
 sudo pacman -U ./build/indicator-sticky-notes-*.pkg.tar.zst
 ```
 
-**From source** you need GTK 3 and PyGObject (Debian/Ubuntu/Mint: `python3-gi gir1.2-gtk-3.0`, Fedora/RHEL/RED OS: `python3-gobject gtk3`, Arch: `python-gobject gtk3`, openSUSE: `python3-gobject typelib-1_0-Gtk-3_0`):
+**From source** you need GTK 3 and PyGObject (Debian/Ubuntu/Mint: `python3-gi python3-gi-cairo gir1.2-gtk-3.0`, Fedora/RHEL/RED OS: `python3-gobject gtk3`, Arch: `python-gobject python-cairo gtk3`, openSUSE: `python3-gobject python3-gobject-cairo typelib-1_0-Gtk-3_0`):
 
 ```bash
 ./run.sh                 # run

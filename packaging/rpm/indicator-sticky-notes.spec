@@ -1,5 +1,5 @@
 Name:           indicator-sticky-notes
-Version:        0.4.0
+Version:        0.4.1
 Release:        1%{?dist}
 Summary:        Sticky notes for the Linux desktop (GTK3)
 License:        MIT
@@ -46,6 +46,12 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{__python3} -m unittest discover -s t
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 10 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.4.1-1
+- Stacks share one width and look like one sheet; the snap target is highlighted
+- Resize notes by the side and bottom edges, collapsed notes by width
+- The shadow margin no longer catches clicks (the resize corner under a stack works)
+- Standalone notes: the magnet button keeps a note out of stacks
+
 * Tue Nov 10 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.4.0-1
 - Note stacks: notes snap under each other and move together; chain button splits a stack
 - Pictures in notes: paste, drop or choose a file; double click opens a viewer
