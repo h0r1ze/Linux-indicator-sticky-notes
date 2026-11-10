@@ -1,5 +1,5 @@
 Name:           indicator-sticky-notes
-Version:        0.3.2
+Version:        0.4.0
 Release:        1%{?dist}
 Summary:        Sticky notes for the Linux desktop (GTK3)
 License:        MIT
@@ -46,6 +46,11 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{__python3} -m unittest discover -s t
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 10 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.4.0-1
+- Note stacks: notes snap under each other and move together; chain button splits a stack
+- Pictures in notes: paste, drop or choose a file; double click opens a viewer
+- Bottom toolbar with formatting, checkbox, font size and picture buttons; collapse button in the header
+
 * Tue Nov 10 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.3.2-1
 - Notes no longer shrink after a reboot: startup geometry is not saved and the saved size is restored
 
