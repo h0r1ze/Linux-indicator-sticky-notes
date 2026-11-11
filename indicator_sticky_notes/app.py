@@ -214,6 +214,31 @@ class StickyApp(Gtk.Application):
             x, y = window.get_position()
             window.move(x + 24, y + 24)  # чуть в сторону, чтобы было видно, что она отдельно
 
+    def stack_will_collapse(self, window):
+        """True, если кнопка связки сейчас свернёт её (есть развёрнутые заметки)."""
+        return any(not member.note.collapsed for member in self.stack_members(window))
+
+    def toggle_stack_collapsed(self, note_id):
+        """Свернуть все заметки связки, а если все уже свёрнуты — развернуть."""
+        window = self.windows.get(note_id)
+        if window is None:
+            return
+        collapse = self.stack_will_collapse(window)
+        members = self.stack_members(window)
+        for member in members:
+            if member.note.collapsed != collapse:
+                member.set_collapsed(collapse)
+
+        # Несколько изменений размера подряд оконный менеджер может применить не все: повторим.
+        def again():
+            for member in members:
+                if not member._destroyed:
+                    member._apply_collapsed()
+            if not members[0]._destroyed:
+                members[0].layout_stack()
+            return False
+        GLib.timeout_add(250, again)
+
     def sync_stack_width(self, window, width, x):
         """У всей связки одна ширина и левый край (тянули за левый край — сдвинулся и x);
         высоту каждая заметка задаёт сама."""

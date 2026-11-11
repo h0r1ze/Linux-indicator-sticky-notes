@@ -150,13 +150,16 @@ class NoteWindow(Gtk.Window):
         bar = Gtk.Box(spacing=2)
         bar.get_style_context().add_class("bar")
 
-        add = self._flat_button("+", _("Новая заметка"))
-        add.connect("clicked", lambda _b: self.app.new_note())
-        bar.pack_start(add, False, False, 0)
+        self.add_button = self._flat_button("+", _("Новая заметка"))
+        self.add_button.connect("clicked", lambda _b: self.app.new_note())
+        bar.pack_start(self.add_button, False, False, 0)
 
-        palette = self._flat_button("●", _("Цвет"))
-        palette.connect("clicked", lambda button: self._palette.toggle(button))
-        bar.pack_start(palette, False, False, 0)
+        self.color_button = self._flat_button("●", _("Цвет"))
+        self.color_button.connect("clicked", lambda button: self._palette.toggle(button))
+        bar.pack_start(self.color_button, False, False, 0)
+        for button in (self.add_button, self.color_button):
+            button.set_no_show_all(True)  # видимостью управляет _update_collapsed_class
+            button.get_child().show()
 
         self.pin_button = self._flat_button("📌", _("Закрепить поверх всех окон"))
         self.pin_button.get_style_context().add_class("pin")
@@ -192,6 +195,17 @@ class NoteWindow(Gtk.Window):
         links.show()
         self.unlink_button.connect("clicked", lambda _b: self.app.unlink_stack(self.note.id))
         bar.pack_end(self.unlink_button, False, False, 0)
+
+        self.stack_collapse_button = self._flat_button("", _("Свернуть всю связку"))
+        self.stack_collapse_button.remove(self.stack_collapse_button.get_child())
+        double = Gtk.DrawingArea()
+        double.set_size_request(12, 14)
+        double.connect("draw", self._draw_double_chevron)
+        self.stack_collapse_button.add(double)
+        self.stack_collapse_button.set_no_show_all(True)  # видна только у заметок в связке
+        double.show()
+        self.stack_collapse_button.connect("clicked", lambda _b: self.app.toggle_stack_collapsed(self.note.id))
+        bar.pack_end(self.stack_collapse_button, False, False, 0)
 
         self.menu_button = self._flat_button("⋯", _("Меню заметки"))
         self.menu_button.connect("clicked", lambda _b: self.popup_menu())
@@ -552,6 +566,8 @@ class NoteWindow(Gtk.Window):
         self.note.collapsed = bool(collapsed)
         self._apply_collapsed()
         self._update_title_label()
+        for member in self.app.stack_members(self):
+            member.update_stack_collapse_button()
         self._schedule_save(touch=False)
 
     def _apply_collapsed(self):
@@ -623,6 +639,31 @@ class NoteWindow(Gtk.Window):
             self.solo_button.set_tooltip_text(_("Сделать отдельной: не скреплять с другими заметками"))
         self.solo_button.queue_draw()
 
+    def update_stack_collapse_button(self):
+        collapse = self.app.stack_will_collapse(self)
+        self.stack_collapse_button.set_tooltip_text(
+            _("Свернуть всю связку") if collapse else _("Развернуть всю связку"))
+        self.stack_collapse_button.queue_draw()
+
+    def _draw_double_chevron(self, area, cr):
+        """Две галочки: свернуть (вверх) или развернуть (вниз) всю связку."""
+        button = self.stack_collapse_button
+        color = button.get_style_context().get_color(button.get_state_flags())
+        width, height = area.get_allocated_width(), area.get_allocated_height()
+        cx, cy = width / 2, height / 2
+        tip = -2.5 if self.app.stack_will_collapse(self) else 2.5
+        cr.set_source_rgba(color.red, color.green, color.blue, color.alpha)
+        cr.set_line_width(1.8)
+        cr.set_line_cap(1)  # cairo.LINE_CAP_ROUND
+        cr.set_line_join(1)  # cairo.LINE_JOIN_ROUND
+        for shift in (-3, 3):
+            y = cy + shift
+            cr.move_to(cx - 4.5, y - tip)
+            cr.line_to(cx, y + tip)
+            cr.line_to(cx + 4.5, y - tip)
+        cr.stroke()
+        return False
+
     def _draw_magnet(self, area, cr):
         """Подкова-магнит; у отдельной заметки перечёркнута."""
         color = self.solo_button.get_style_context().get_color(self.solo_button.get_state_flags())
@@ -647,6 +688,8 @@ class NoteWindow(Gtk.Window):
         above = self.note.dock in self.app.windows
         below = self.app.dock_child(self.note.id) is not None
         self.unlink_button.set_visible(above or below)
+        self.stack_collapse_button.set_visible(below and not above)  # только у верхней заметки связки
+        self.update_stack_collapse_button()
         self._update_solo_button()
         ctx = self.card.get_style_context()
         for name, on in (("stack-above", below), ("stack-below", above)):
@@ -715,7 +758,10 @@ class NoteWindow(Gtk.Window):
         return False
 
     def _update_collapsed_class(self):
-        """У свёрнутой заметки скруглены все углы шапки, а не только верхние."""
+        """У свёрнутой заметки скруглены все углы шапки, а не только верхние.
+        «+» и цвет прячутся: в узкой полоске место нужнее заголовку (они есть в меню ⋯ и трее)."""
+        for button in (self.add_button, self.color_button):
+            button.set_visible(not self.note.collapsed)
         ctx = self.card.get_style_context()
         if self.note.collapsed:
             ctx.add_class("collapsed")
@@ -934,6 +980,9 @@ class NoteWindow(Gtk.Window):
         item(menu, _("Заголовок…"), self.edit_title)
         item(menu, _("Развернуть") if self.note.collapsed else _("Свернуть"),
              lambda: self.set_collapsed(not self.note.collapsed))
+        if self.note.dock in self.app.windows or self.app.dock_child(self.note.id) is not None:
+            item(menu, _("Свернуть всю связку") if self.app.stack_will_collapse(self)
+                 else _("Развернуть всю связку"), lambda: self.app.toggle_stack_collapsed(self.note.id))
         item(menu, _("Отдельная (не скреплять с другими)"),
              lambda: self.app.set_solo(self.note.id, not self.note.solo), check=self.note.solo)
         menu.append(Gtk.SeparatorMenuItem())
@@ -1159,6 +1208,28 @@ class NoteWindow(Gtk.Window):
             if not candidate.backward_char():
                 break
         return None
+
+    def build_image_menu(self, name):
+        """Меню картинки: открыть, открыть в программе по умолчанию, показать в папке."""
+        path = self.images_dir / name
+        menu = Gtk.Menu()
+        for label, action in (
+            (_("Открыть картинку"), lambda: self.open_image(name)),
+            (_("Открыть в программе по умолчанию"), lambda: images.open_default(path)),
+            (_("Показать в папке"), lambda: images.show_in_folder(path)),
+        ):
+            entry = Gtk.MenuItem(label=label)
+            entry.connect("activate", lambda _i, run=action: run())
+            entry.set_sensitive(path.exists() or label == _("Показать в папке"))
+            menu.append(entry)
+        menu.show_all()
+        return menu
+
+    def popup_image_menu(self, name, event=None):
+        # Ссылку на меню держим, иначе сборщик мусора уничтожит его раньше времени.
+        self._image_menu = self.build_image_menu(name)
+        self._image_menu.attach_to_widget(self.view, None)
+        self._image_menu.popup_at_pointer(event)
 
     def open_image(self, name):
         viewer = images.ImageViewer(self.images_dir / name)
@@ -1519,6 +1590,11 @@ class NoteWindow(Gtk.Window):
             name = self._image_at(event.x, event.y)
             if name:
                 self.open_image(name)
+                return True
+        if event.button == 3 and event.type == Gdk.EventType.BUTTON_PRESS:
+            name = self._image_at(event.x, event.y)
+            if name:
+                self.popup_image_menu(name, event)
                 return True
         if event.button != 1 or event.type != Gdk.EventType.BUTTON_PRESS:
             return False

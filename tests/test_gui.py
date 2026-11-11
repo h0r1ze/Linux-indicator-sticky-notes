@@ -668,6 +668,31 @@ class GuiStage2Test(GuiTest):
         self.assertFalse(b.note.solo)
         self.assertTrue(self.app.dock(b.note.id, c.note.id))
 
+    def test_stack_collapse_button_folds_and_unfolds_all(self):
+        a, b, c = self.start({"text": "a"}, {"text": "b"}, {"text": "c"})
+        pump(0.2)
+        self.assertFalse(a.stack_collapse_button.get_visible())
+        self.app.dock(b.note.id, a.note.id)
+        self.app.dock(c.note.id, b.note.id)
+        self.assertTrue(a.stack_collapse_button.get_visible())  # только у верхней
+        self.assertFalse(b.stack_collapse_button.get_visible() or c.stack_collapse_button.get_visible())
+        b.set_collapsed(True)  # одна уже свёрнута — кнопка всё равно сворачивает все
+        self.assertFalse(b.add_button.get_visible())  # в свёрнутой полоске место отдано заголовку
+        self.assertEqual(a.stack_collapse_button.get_tooltip_text(), "Свернуть всю связку")
+        a.stack_collapse_button.clicked()
+        pump(0.4)
+        self.assertTrue(all(w.note.collapsed for w in (a, b, c)))
+        self.assert_under(b, a)
+        self.assert_under(c, b)
+        self.assertEqual(a.stack_collapse_button.get_tooltip_text(), "Развернуть всю связку")
+        a.stack_collapse_button.clicked()
+        pump(0.4)
+        self.assertFalse(any(w.note.collapsed for w in (a, b, c)))
+        self.assertTrue(b.add_button.get_visible())
+        self.assert_under(c, b)
+        self.app.unlink_stack(a.note.id)
+        self.assertFalse(a.stack_collapse_button.get_visible())
+
     def test_magnet_snaps_near_bottom_only(self):
         top, other = self.start({"text": "a", "x": 100, "y": 100}, {"text": "b", "x": 600, "y": 100})
         pump(0.2)
@@ -787,10 +812,59 @@ class GuiStage2Test(GuiTest):
         self.assertTrue(window._on_view_press(None, event))
         self.assertEqual(opened, [name])
 
+    def test_right_click_on_image_offers_folder(self):
+        from indicator_sticky_notes import images as imagelib
+        (window,) = self.start({"text": "ab"})
+        path, _pixbuf = self.make_png(size=(60, 40))
+        buffer = window.view.get_buffer()
+        buffer.place_cursor(buffer.get_iter_at_offset(2))
+        window.insert_image_files([path])
+        pump(0.3)
+        name = window.collect_images()[0][1]
+        rect = window.view.get_iter_location(buffer.get_iter_at_offset(2))
+        wx, wy = window.view.buffer_to_window_coords(Gtk.TextWindowType.TEXT, rect.x + 20, rect.y + 10)
+        shown = []
+        window.popup_image_menu = lambda n, e=None: shown.append(n)
+        raw = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)  # держим ссылку на событие
+        event = raw.button
+        event.button, event.x, event.y = 3, wx, wy
+        self.assertTrue(window._on_view_press(None, event))
+        self.assertEqual(shown, [name])
+        menu = window.build_image_menu(name)
+        labels = [item.get_label() for item in menu.get_children()]
+        self.assertEqual(labels, ["Открыть картинку", "Открыть в программе по умолчанию", "Показать в папке"])
+        with mock.patch.object(imagelib, "show_in_folder") as show:
+            menu.get_children()[2].activate()
+        show.assert_called_once_with(window.images_dir / name)
+
+    def test_show_in_folder_falls_back_to_opening_the_folder(self):
+        from indicator_sticky_notes import images as imagelib
+        from gi.repository import Gio, GLib
+        path, _pixbuf = self.make_png()
+        failing_bus = mock.Mock()
+        failing_bus.call_sync.side_effect = GLib.Error("нет файлового менеджера")
+        with mock.patch.object(Gio, "bus_get_sync", return_value=failing_bus), \
+                mock.patch.object(Gio.AppInfo, "launch_default_for_uri", return_value=True) as launch:
+            self.assertTrue(imagelib.show_in_folder(path))
+        launch.assert_called_once_with(path.resolve().parent.as_uri(), None)
+        ok_bus = mock.Mock()
+        with mock.patch.object(Gio, "bus_get_sync", return_value=ok_bus):
+            self.assertTrue(imagelib.show_in_folder(path))
+        args = ok_bus.call_sync.call_args[0]
+        self.assertEqual(args[3], "ShowItems")
+        self.assertEqual(args[4].unpack(), ([path.resolve().as_uri()], ""))
+
     def test_missing_image_keeps_its_place(self):
         note = {"text": "x\ufffc", "images": [[1, "nope.png"]]}
         (window,) = self.start(note)
         self.assertEqual(window.collect_images(), [[1, "nope.png"]])
+
+    def test_collapsed_note_starts_without_add_and_color_buttons(self):
+        folded, normal = self.start({"text": "a", "collapsed": True}, {"text": "b"})
+        self.assertFalse(folded.add_button.get_visible() or folded.color_button.get_visible())
+        self.assertTrue(normal.add_button.get_visible() and normal.color_button.get_visible())
+        folded.set_collapsed(False)
+        self.assertTrue(folded.add_button.get_visible())
 
     def test_collapsed_state_persists(self):
         (window,) = self.start({"text": "a"})

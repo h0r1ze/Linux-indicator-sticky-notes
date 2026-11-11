@@ -14,7 +14,7 @@ import gi
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from .i18n import _  # noqa: E402
 from .storage import IMAGE_CHAR  # noqa: E402
@@ -93,6 +93,37 @@ def name_of(pixbuf):
 
 def file_uri(directory, name) -> str:
     return (Path(directory) / name).resolve().as_uri()
+
+
+def show_in_folder(path):
+    """Открыть папку с файлом в файловом менеджере и выделить файл.
+
+    Сначала стандартный D-Bus запрос org.freedesktop.FileManager1.ShowItems (Caja, Nautilus,
+    Nemo, Dolphin, Thunar), если его некому выполнить — просто открыть папку.
+    """
+    uri = Path(path).resolve().as_uri()
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        bus.call_sync(
+            "org.freedesktop.FileManager1", "/org/freedesktop/FileManager1",
+            "org.freedesktop.FileManager1", "ShowItems",
+            GLib.Variant("(ass)", ([uri], "")), None, Gio.DBusCallFlags.NONE, 3000, None,
+        )
+        return True
+    except GLib.Error:
+        pass
+    try:
+        return Gio.AppInfo.launch_default_for_uri(Path(path).resolve().parent.as_uri(), None)
+    except GLib.Error:
+        return False
+
+
+def open_default(path):
+    """Открыть картинку в программе по умолчанию."""
+    try:
+        return Gio.AppInfo.launch_default_for_uri(Path(path).resolve().as_uri(), None)
+    except GLib.Error:
+        return False
 
 
 def replace_chars(text, images, render):
