@@ -22,7 +22,8 @@ SETTLE_MS = 30000
 SCREEN_SETTLE_MS = 2000  # то же после смены разрешения или мониторов
 SNAP_DISTANCE = 24  # на столько пикселей шапку можно поднести к низу другой заметки, чтобы прилипла
 EDGE_OUT, EDGE_IN = 10, 5  # зона захвата края: пикселей снаружи листа (в поле тени) и внутри
-SNAP_DELAY_MS = 350  # перетаскивание считаем законченным, если окно столько не двигалось
+SNAP_DELAY_MS = 350
+SIZE_CHECK_MS = 300  # через столько проверяем, применил ли оконный менеджер размер  # перетаскивание считаем законченным, если окно столько не двигалось
 MIN_WIDTH, MIN_HEIGHT = 240, 140
 FONT_MIN, FONT_MAX = 8, 40
 FONT_RANGE = (FONT_MIN, FONT_MAX)
@@ -64,6 +65,7 @@ class NoteWindow(Gtk.Window):
         self._drag_source = None  # ждём конца перетаскивания, чтобы проверить «магнит»
         self._last_width = None  # ширину, изменённую пользователем, раздаём всей связке
         self._flash_source = None
+        self._size_check_source = None
         self._font_provider = Gtk.CssProvider()
         self._placeholder_provider = Gtk.CssProvider()
 
@@ -508,10 +510,10 @@ class NoteWindow(Gtk.Window):
     def _on_destroy(self, _widget):
         self._destroyed = True
         self._stop_settling()
-        for source in (self._drag_source, self._flash_source):
+        for source in (self._drag_source, self._flash_source, self._size_check_source):
             if source is not None:
                 GLib.source_remove(source)
-        self._drag_source = self._flash_source = None
+        self._drag_source = self._flash_source = self._size_check_source = None
         screen = self.get_screen()
         for handler in self._screen_handlers:
             screen.disconnect(handler)
@@ -530,6 +532,11 @@ class NoteWindow(Gtk.Window):
         return True
 
     # --- показать / спрятать / закрепить / свернуть ---
+
+    def show_all(self):
+        # show_all() показывает и текст свёрнутой заметки: состояние «свёрнута» возвращаем.
+        Gtk.Window.show_all(self)
+        self._apply_collapsed()
 
     def show_note(self, highlight=None):
         was_hidden = self.note.hidden
@@ -576,10 +583,33 @@ class NoteWindow(Gtk.Window):
         self.body.set_visible(not collapsed)
         self.grip.set_visible(not collapsed)
         self.set_size_request(MIN_WIDTH, 1 if collapsed else MIN_HEIGHT)
-        if collapsed:
-            self.resize(max(self.note.width, MIN_WIDTH), 1)
+        self.resize(*self._wanted_size())
+        # Оконный менеджер (marco при запуске, при нескольких изменениях подряд) иногда
+        # не применяет новый размер: свёрнутая заметка остаётся высокой. Проверим и повторим.
+        if self._size_check_source is not None:
+            GLib.source_remove(self._size_check_source)
+        self._size_check_source = GLib.timeout_add(SIZE_CHECK_MS, self._check_size, 3)
+
+    def _wanted_size(self):
+        width = max(self.note.width, MIN_WIDTH)
+        if self.note.collapsed:
+            return width, 1
+        return width, max(self.note.height, MIN_HEIGHT)
+
+    def _check_size(self, attempts):
+        self._size_check_source = None
+        if self._destroyed or not self.get_visible():
+            return False
+        height = self.get_size()[1]
+        if self.note.collapsed:
+            wrong = height > self.get_preferred_height()[0] + 4
         else:
-            self.resize(max(self.note.width, MIN_WIDTH), max(self.note.height, MIN_HEIGHT))
+            wrong = abs(height - self._wanted_size()[1]) > 4
+        if wrong:
+            self.resize(*self._wanted_size())
+            if attempts > 1:
+                self._size_check_source = GLib.timeout_add(SIZE_CHECK_MS, self._check_size, attempts - 1)
+        return False
 
     # --- связка ---
 

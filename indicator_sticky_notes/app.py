@@ -44,6 +44,7 @@ class StickyApp(Gtk.Application):
         self._monitor = None
         self._reload_source = None
         self.restart_requested = False  # после выхода main() запустит приложение заново
+        self._activated = False  # первая активация — сам запуск, а не повторный запуск
 
     # --- запуск и завершение ---
 
@@ -78,10 +79,12 @@ class StickyApp(Gtk.Application):
         self._watch_data_dir()
 
     def do_activate(self):
-        # Повторный запуск показывает заметки (или создаёт первую).
+        # GTK активирует приложение и при самом запуске: тогда окна уже открыты в setup()
+        # как были, и скрытые заметки показывать нельзя. Повторный запуск показывает все.
+        first, self._activated = not self._activated, True
         if not self.store.active_notes:
             self.new_note()
-        else:
+        elif not first:
             self.show_all()
 
     def do_shutdown(self):

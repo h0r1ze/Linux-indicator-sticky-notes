@@ -490,6 +490,7 @@ class GuiStage2Test(GuiTest):
         # После перезагрузки окно сжимали, пока запускался сеанс, а возвращало его
         # только «свернуть-развернуть».
         (window,) = self.start({"text": "a", "width": 300, "height": 400})
+        pump(0.5)  # после проверки размера при показе окна
         window.resize(300, 180)
         pump(0.3)
         self.assertLess(window.get_size()[1], 300)
@@ -865,6 +866,38 @@ class GuiStage2Test(GuiTest):
         self.assertTrue(normal.add_button.get_visible() and normal.color_button.get_visible())
         folded.set_collapsed(False)
         self.assertTrue(folded.add_button.get_visible())
+
+    def test_launch_keeps_hidden_hidden_and_collapsed_collapsed(self):
+        # Так запускается программа: do_startup → setup(), затем do_activate.
+        shown, hidden, folded = self.start({"text": "a"}, {"text": "b", "hidden": True},
+                                           {"text": "c", "collapsed": True})
+        self.app.do_activate()
+        pump(0.3)
+        self.assertFalse(hidden.get_visible())
+        self.assertTrue(folded.get_visible() and not folded.body.get_visible())
+        self.assertLess(folded.get_size()[1], 100)
+        folded.collapse_button.clicked()  # разворачивается с первого нажатия
+        pump(0.3)
+        self.assertFalse(folded.note.collapsed)
+        self.assertTrue(folded.body.get_visible())
+        folded.collapse_button.clicked()
+        pump(0.3)
+        self.assertTrue(folded.note.collapsed)
+        # Повторный запуск при работающей программе показывает и скрытые — но свёрнутые не раскрывает.
+        self.app.do_activate()
+        pump(0.3)
+        self.assertTrue(hidden.get_visible())
+        self.assertFalse(folded.body.get_visible())
+        self.assertLess(folded.get_size()[1], 100)
+
+    def test_show_all_on_visible_collapsed_note_keeps_it_collapsed(self):
+        (window,) = self.start({"text": "a"})
+        window.set_collapsed(True)
+        pump(0.2)
+        window.show_note()
+        pump(0.3)
+        self.assertFalse(window.body.get_visible())
+        self.assertFalse(window.grip.get_visible())
 
     def test_collapsed_state_persists(self):
         (window,) = self.start({"text": "a"})

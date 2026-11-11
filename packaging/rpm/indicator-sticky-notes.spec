@@ -1,5 +1,5 @@
 Name:           indicator-sticky-notes
-Version:        0.4.2
+Version:        0.4.3
 Release:        1%{?dist}
 Summary:        Sticky notes for the Linux desktop (GTK3)
 License:        MIT
@@ -46,6 +46,11 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} %{__python3} -m unittest discover -s t
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 11 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.4.3-1
+- Hidden notes no longer reappear at startup
+- Collapsed notes stay collapsed at startup and collapse/expand works on the first click
+- Stacks keep their layout after a restart; window sizes are re-applied if the window manager drops them
+
 * Wed Nov 11 2026 h0r1ze <87946256+h0r1ze@users.noreply.github.com> - 0.4.2-1
 - Right-click a picture: open it, open in the default application, show in folder
 - Collapse or expand a whole stack with the double chevron on its top note
